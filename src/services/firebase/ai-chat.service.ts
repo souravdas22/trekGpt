@@ -5,7 +5,7 @@ import {
   getDocument,
   getCollection
 } from './firestore.service';
-import { FirebaseFirestoreTypes, getFirestore, collection, query, where, orderBy, getDocs } from '@react-native-firebase/firestore';
+import { FirebaseFirestoreTypes, getFirestore, collection, query, where, getDocs } from '@react-native-firebase/firestore';
 import { ChatMessage } from '../../hooks/useAiChat';
 
 export interface AiChatSession {
@@ -101,20 +101,28 @@ class AiChatService {
       const collectionRef = collection(getFirestore(), COLLECTIONS.AI_CHATS);
       const q = query(
         collectionRef, 
-        where('userId', '==', userId),
-        orderBy('updatedAt', 'desc')
+        where('userId', '==', userId)
       );
       
       const snapshot = await getDocs(q);
       
-      return snapshot.docs.map(doc => {
+      const sessions = snapshot.docs.map(doc => {
         const data = doc.data() as AiChatSession;
         return {
           ...data,
           id: doc.id,
-          // We don't necessarily need to deserialize all messages just for a list view,
-          // but we can if we want to show a snippet.
         };
+      });
+
+      // Sort by updatedAt descending in memory to avoid needing a Firestore composite index
+      return sessions.sort((a, b) => {
+        const timeA = a.updatedAt instanceof Date 
+          ? a.updatedAt.getTime() 
+          : (a.updatedAt as any)?.toDate ? (a.updatedAt as any).toDate().getTime() : 0;
+        const timeB = b.updatedAt instanceof Date 
+          ? b.updatedAt.getTime() 
+          : (b.updatedAt as any)?.toDate ? (b.updatedAt as any).toDate().getTime() : 0;
+        return timeB - timeA;
       });
     } catch (error) {
       console.log('Error getting user chat sessions:', error);

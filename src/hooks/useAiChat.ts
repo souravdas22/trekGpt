@@ -3,7 +3,7 @@ import { Content } from '@google/generative-ai';
 import { geminiService } from '../services/ai/gemini.service';
 import { aiChatService } from '../services/firebase/ai-chat.service';
 import { getCurrentUser } from '../services/firebase/auth.service';
-import { TREK_DB } from '../data/trekDb';
+import { trekService, TrekDocument } from '../services/firebase/trek.service';
 
 export type ChatMessage = {
   id: string;
@@ -25,22 +25,53 @@ export const useAiChat = (initialSessionId?: string) => {
   const messagesRef = useRef<ChatMessage[]>([]);
   const historyRef = useRef<Content[]>([]);
   const sessionIdRef = useRef<string | null>(initialSessionId || null);
+  const treksRef = useRef<TrekDocument[]>([]);
 
-  // Load initial session if provided
+  // Preload treks from DB
+  useEffect(() => {
+    const loadTreks = async () => {
+      const dbTreks = await trekService.getAllTreks();
+      treksRef.current = dbTreks;
+    };
+    loadTreks();
+  }, []);
+
+  // Load initial session if provided or latest session
   useEffect(() => {
     const loadSession = async () => {
-      if (initialSessionId) {
+      let idToLoad = initialSessionId;
+
+      if (!idToLoad) {
+        // Try to fetch the latest session for the current user
+        const user = getCurrentUser();
+        if (user) {
+          try {
+            const sessions = await aiChatService.getUserChatSessions(user.uid);
+            if (sessions && sessions.length > 0) {
+              idToLoad = sessions[0].id;
+            }
+          } catch (err) {
+            console.error('Failed to fetch user chat sessions:', err);
+          }
+        }
+      }
+
+      if (idToLoad) {
         try {
-          const data = await aiChatService.getChatSession(initialSessionId);
+          const data = await aiChatService.getChatSession(idToLoad);
           if (data) {
             messagesRef.current = data.messages;
             setMessages(data.messages);
+            setSessionId(idToLoad);
+            sessionIdRef.current = idToLoad;
             
             // Rebuild Gemini history format
-            historyRef.current = data.messages.map(msg => ({
-              role: msg.role,
-              parts: [{ text: msg.text }]
-            }));
+            historyRef.current = data.messages
+              .filter(msg => (msg.role === 'user' || msg.role === 'model') && msg.text)
+              .map(msg => ({
+                role: msg.role,
+                parts: [{ text: msg.text }]
+              }));
           }
         } catch (err) {
           console.error('Failed to load chat session:', err);
@@ -122,8 +153,8 @@ export const useAiChat = (initialSessionId?: string) => {
 
       // Detect treks mentioned in the text
       const lowerText = accumulatedText.toLowerCase();
-      const detectedTreks = TREK_DB.filter(trek => {
-        return trek.keywords.some(kw => lowerText.includes(kw));
+      const detectedTreks = treksRef.current.filter(trek => {
+        return trek.keywords?.some((kw: string) => lowerText.includes(kw));
       });
 
       // Append detected treks as separate messages

@@ -37,7 +37,7 @@ class GeminiService {
 
     // Configure the default model to use
     this.defaultModel = this.ai.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.7,
         topK: 40,
@@ -367,7 +367,7 @@ class GeminiService {
 
       // Configure a conversational model
       const model = this.ai.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-1.5-flash',
         systemInstruction: systemContext,
       });
 

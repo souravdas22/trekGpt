@@ -7,6 +7,7 @@ export const COLLECTIONS = {
   COMMENTS: 'comments',
   ACHIEVEMENTS: 'achievements',
   AI_CHATS: 'ai_chats',
+  TREKS: 'treks',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];
