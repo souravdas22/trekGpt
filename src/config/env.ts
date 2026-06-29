@@ -1,0 +1,22 @@
+import {
+  GEMINI_API_KEY,
+  OPENWEATHER_API_KEY,
+  GOOGLE_MAPS_API_KEY,
+  GOOGLE_WEB_CLIENT_ID,
+} from '@env';
+
+interface EnvConfig {
+  GEMINI_API_KEY: string;
+  OPENWEATHER_API_KEY: string;
+  GOOGLE_MAPS_API_KEY: string;
+  GOOGLE_WEB_CLIENT_ID: string;
+}
+
+const env: EnvConfig = {
+  GEMINI_API_KEY: GEMINI_API_KEY || '',
+  OPENWEATHER_API_KEY: OPENWEATHER_API_KEY || '',
+  GOOGLE_MAPS_API_KEY: GOOGLE_MAPS_API_KEY || '',
+  GOOGLE_WEB_CLIENT_ID: GOOGLE_WEB_CLIENT_ID || '',
+};
+
+export default env;
