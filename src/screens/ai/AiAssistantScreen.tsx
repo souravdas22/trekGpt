@@ -19,6 +19,7 @@ import { useGemini } from '../../hooks/useGemini';
 import { ChatBubble } from '../../components/chat/ChatBubble';
 import { AiRecommendationCard } from '../../components/chat/AiRecommendationCard';
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
+import { getTrekImage } from '../../utils/trekImageMap';
 import Toast from 'react-native-toast-message';
 
 const suggestions = [
@@ -67,11 +68,7 @@ export const AiAssistantScreen = ({ navigation }: any) => {
   };
 
   const handleGenerateItinerary = async (trekName: string) => {
-    Toast.show({ type: 'info', text1: 'Generating itinerary...', position: 'bottom' });
-    const res = await generateAndSaveItinerary(trekName, 5, 'Kolkata'); // mock days and city for now
-    if (res) {
-      sendMessage(`Generated itinerary for ${trekName}! You can view it in your plans.`);
-    }
+    sendMessage(`I'd like to plan a custom trek for ${trekName}. Please help me create a detailed itinerary and plan.`);
   };
 
   const handleGeneratePackingList = async (trekName: string) => {
@@ -193,6 +190,7 @@ export const AiAssistantScreen = ({ navigation }: any) => {
                   days={`${msg.componentData.durationDays} Days`}
                   difficulty={msg.componentData.difficulty}
                   price={msg.componentData.estimatedCost}
+                  imageSource={getTrekImage(msg.componentData.name)}
                   imageUrl="https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80" // Fallback generic image
                   onGenerateItinerary={() => handleGenerateItinerary(msg.componentData.name)}
                   onGeneratePackingList={() => handleGeneratePackingList(msg.componentData.name)}

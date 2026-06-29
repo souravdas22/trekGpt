@@ -3,6 +3,7 @@ import { Content } from '@google/generative-ai';
 import { geminiService } from '../services/ai/gemini.service';
 import { aiChatService } from '../services/firebase/ai-chat.service';
 import { getCurrentUser } from '../services/firebase/auth.service';
+import { TREK_DB } from '../data/trekDb';
 
 export type ChatMessage = {
   id: string;
@@ -118,6 +119,29 @@ export const useAiChat = (initialSessionId?: string) => {
         msg.id === botMessageId ? { ...msg, isStreaming: false } : msg
       );
       setMessages([...messagesRef.current]);
+
+      // Detect treks mentioned in the text
+      const lowerText = accumulatedText.toLowerCase();
+      const detectedTreks = TREK_DB.filter(trek => {
+        return trek.keywords.some(kw => lowerText.includes(kw));
+      });
+
+      // Append detected treks as separate messages
+      for (const rec of detectedTreks) {
+        const msg: ChatMessage = {
+          id: Math.random().toString(36).substring(7),
+          role: 'model',
+          text: '',
+          timestamp: new Date(),
+          componentType: 'recommendation',
+          componentData: rec,
+        };
+        messagesRef.current = [...messagesRef.current, msg];
+      }
+      
+      if (detectedTreks.length > 0) {
+        setMessages([...messagesRef.current]);
+      }
 
       // Update Gemini history ref
       historyRef.current.push({ role: 'user', parts: [{ text }] });

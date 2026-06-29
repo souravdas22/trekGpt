@@ -17,13 +17,14 @@ interface AiRecommendationCardProps {
   days: string;
   difficulty: string;
   price: string;
-  imageUrl: string;
+  imageUrl?: string;
+  imageSource?: any;
   onGenerateItinerary?: () => void;
   onGeneratePackingList?: () => void;
 }
 
 export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({ 
-  id, title, location, days, difficulty, price, imageUrl, onGenerateItinerary, onGeneratePackingList
+  id, title, location, days, difficulty, price, imageUrl, imageSource, onGenerateItinerary, onGeneratePackingList
 }) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -49,7 +50,7 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
   return (
     <View style={styles.trekCard}>
       <View style={styles.trekCardImageContainer}>
-        <Image source={{uri: imageUrl}} style={styles.trekCardImage} />
+        <Image source={imageSource || {uri: imageUrl}} style={styles.trekCardImage} />
         <TouchableOpacity style={styles.favoriteBtn} onPress={handleSave}>
           <Icon name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#EF4444" : colors.text} />
         </TouchableOpacity>
@@ -78,13 +79,13 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
             <Text style={styles.viewDetailsBtnText}>View Details</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.planBtn} onPress={onGenerateItinerary}>
-            <Text style={styles.planBtnText}>Generate Itinerary</Text>
+            <Text style={styles.planBtnText}>Plan This Trek</Text>
           </TouchableOpacity>
         </View>
         
         {onGeneratePackingList && (
           <TouchableOpacity style={styles.packBtn} onPress={onGeneratePackingList}>
-            <Icon name="backpack-outline" size={14} color={colors.accent} style={{marginRight: 6}} />
+            <Icon name="bag-personal-outline" size={14} color={colors.accent} style={{marginRight: 6}} />
             <Text style={styles.packBtnText}>Create Packing List</Text>
           </TouchableOpacity>
         )}
@@ -105,8 +106,8 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     width: '100%',
   },
   trekCardImageContainer: {
-    width: normalize(90),
-    height: normalize(130), // Slightly taller to accommodate new button
+    width: normalize(130),
+    height: normalize(110),
     borderRadius: normalize(12),
     overflow: 'hidden',
     marginRight: normalize(10),
