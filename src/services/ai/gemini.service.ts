@@ -37,7 +37,7 @@ class GeminiService {
 
     // Configure the default model to use
     this.defaultModel = this.ai.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.7,
         topK: 40,
@@ -101,7 +101,7 @@ class GeminiService {
       // We might need to override generation config if it's not JSON
       const model = isJsonOutput 
         ? this.defaultModel 
-        : this.ai.getGenerativeModel({ model: 'gemini-flash-latest' });
+        : this.ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       // @google/generative-ai SDK doesn't natively support AbortSignal in generateContent yet in some versions,
       // but we wrap the promise in a timeout race anyway.
@@ -254,18 +254,25 @@ class GeminiService {
     return this.executePrompt<DetailedPackingListResponse>(prompt);
   }
 
-  public async generateTrekRecommendation(preferences: string): Promise<AIResponse<TrekRecommendation>> {
-    const prompt = `You are an expert trekking guide. Based on the following user preferences, recommend a single trek: "${preferences}".
+  public async generateTrekRecommendation(preferences: string, availableTreks?: any[]): Promise<AIResponse<TrekRecommendation>> {
+    let treksContext = '';
+    if (availableTreks && availableTreks.length > 0) {
+      treksContext = `\n\nAvailable Treks in Database:\n${JSON.stringify(availableTreks.map(t => ({ id: t.id, name: t.name, location: t.location, difficulty: t.difficulty, durationDays: t.durationDays, estimatedCost: t.estimatedCost, imageUrl: t.imageUrl, keywords: t.keywords })))}\n\nPlease recommend a trek EXACTLY from this list if possible, and include its id and imageUrl in the response.`;
+    }
+
+    const prompt = `You are an expert trekking guide. Based on the following user preferences, recommend a single trek: "${preferences}".${treksContext}
     
     Return ONLY a valid JSON object representing the recommendation. Use this exact schema:
     {
+      "id": "string (The id of the trek if from database, else empty string)",
       "name": "string (Name of the trek)",
       "location": "string (Region, Country)",
-      "difficulty": "Easy" | "Moderate" | "Hard" | "Expert",
+      "difficulty": "Easy" | "Moderate" | "Hard" | "Expert" | "string",
       "durationDays": number,
       "bestSeason": "string (e.g., Spring, Autumn)",
       "description": "string (A compelling 2-3 sentence description)",
-      "estimatedCost": "string (e.g., $500 - $800)"
+      "estimatedCost": "string (e.g., $500 - $800)",
+      "imageUrl": "string (The imageUrl of the trek if from database, else empty string)"
     }`;
 
     return this.executePrompt<TrekRecommendation>(prompt);
@@ -367,7 +374,7 @@ class GeminiService {
 
       // Configure a conversational model
       const model = this.ai.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         systemInstruction: systemContext,
       });
 

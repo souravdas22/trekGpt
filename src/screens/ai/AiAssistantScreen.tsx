@@ -19,7 +19,6 @@ import { useGemini } from '../../hooks/useGemini';
 import { ChatBubble } from '../../components/chat/ChatBubble';
 import { AiRecommendationCard } from '../../components/chat/AiRecommendationCard';
 import { TypingIndicator } from '../../components/chat/TypingIndicator';
-import { getTrekImage } from '../../utils/trekImageMap';
 import Toast from 'react-native-toast-message';
 
 const suggestions = [
@@ -184,14 +183,13 @@ export const AiAssistantScreen = ({ navigation }: any) => {
               return (
                 <AiRecommendationCard
                   key={msg.id}
-                  id={Math.random().toString(36).substring(7)}
+                  id={msg.componentData.id || Math.random().toString(36).substring(7)}
                   title={msg.componentData.name}
                   location={msg.componentData.location}
                   days={`${msg.componentData.durationDays} Days`}
                   difficulty={msg.componentData.difficulty}
                   price={msg.componentData.estimatedCost}
-                  imageSource={getTrekImage(msg.componentData.name)}
-                  imageUrl="https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80" // Fallback generic image
+                  imageUrl={msg.componentData.imageUrl || "https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80"}
                   onGenerateItinerary={() => handleGenerateItinerary(msg.componentData.name)}
                   onGeneratePackingList={() => handleGeneratePackingList(msg.componentData.name)}
                 />

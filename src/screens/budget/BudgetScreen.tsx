@@ -42,7 +42,7 @@ export const BudgetScreen = ({ navigation }: BudgetScreenProps) => {
   // State
   const [totalBudget, setTotalBudget] = useState<number>(15000);
   const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>([
-    { id: '1', name: 'Travel', spent: 3200, allocated: 5000, icon: 'train-car-passenger-outline' },
+    { id: '1', name: 'Travel', spent: 3200, allocated: 5000, icon: 'airplane' },
     { id: '2', name: 'Permits', spent: 1500, allocated: 1500, icon: 'card-text-outline' },
     { id: '3', name: 'Stay', spent: 2400, allocated: 3000, icon: 'home-outline' },
     { id: '4', name: 'Food', spent: 2100, allocated: 3000, icon: 'food-apple-outline' },

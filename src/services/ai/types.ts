@@ -1,11 +1,13 @@
 export interface TrekRecommendation {
+  id?: string;
   name: string;
   location: string;
-  difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert';
+  difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert' | string;
   durationDays: number;
   bestSeason: string;
   description: string;
   estimatedCost: string;
+  imageUrl?: string;
 }
 
 export interface TrekPlannerParams {

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { geminiService } from '../services/ai/gemini.service';
 import { itineraryService } from '../services/firebase/itinerary.service';
 import { packingListService } from '../services/firebase/packing-list.service';
+import { trekService } from '../services/firebase/trek.service';
 import {
   TrekRecommendation,
   TrekPlannerParams,
@@ -113,8 +114,9 @@ export const useGemini = () => {
 
   const getTrekRecommendation = useCallback(
     async (preferences: string) => {
+      const allTreks = await trekService.getAllTreks();
       return handleAiCall<TrekRecommendation>(() =>
-        geminiService.generateTrekRecommendation(preferences)
+        geminiService.generateTrekRecommendation(preferences, allTreks)
       );
     },
     []

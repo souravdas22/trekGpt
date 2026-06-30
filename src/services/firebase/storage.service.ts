@@ -1,4 +1,4 @@
-import { firebaseStorage } from './firebase';
+import { getStorage, ref, putFile, getDownloadURL, deleteObject } from '@react-native-firebase/storage';
 import { Image } from 'react-native-compressor';
 
 export enum StoragePath {
@@ -39,8 +39,9 @@ const uploadFile = async (
       }
     }
 
-    const reference = firebaseStorage().ref(path);
-    const task = reference.putFile(filePathToUpload);
+    const storage = getStorage();
+    const reference = ref(storage, path);
+    const task = putFile(reference, filePathToUpload);
 
     if (options?.onProgress) {
       task.on('state_changed', (snapshot) => {
@@ -53,7 +54,7 @@ const uploadFile = async (
     await task;
 
     // Return the generated download URL
-    return await reference.getDownloadURL();
+    return await getDownloadURL(reference);
   } catch (error: any) {
     console.error(`[StorageService] Upload error at ${path}:`, error);
     throw new StorageError(
@@ -86,8 +87,9 @@ export const uploadCommunityImage = async (
 
 export const deleteImage = async (path: string): Promise<void> => {
   try {
-    const reference = firebaseStorage().ref(path);
-    await reference.delete();
+    const storage = getStorage();
+    const reference = ref(storage, path);
+    await deleteObject(reference);
   } catch (error: any) {
     console.error(`[StorageService] Delete error at ${path}:`, error);
     throw new StorageError(
@@ -100,8 +102,9 @@ export const deleteImage = async (path: string): Promise<void> => {
 
 export const getDownloadUrl = async (path: string): Promise<string> => {
   try {
-    const reference = firebaseStorage().ref(path);
-    return await reference.getDownloadURL();
+    const storage = getStorage();
+    const reference = ref(storage, path);
+    return await getDownloadURL(reference);
   } catch (error: any) {
     console.error(`[StorageService] Get URL error at ${path}:`, error);
     throw new StorageError(

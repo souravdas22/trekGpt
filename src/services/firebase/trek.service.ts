@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc } from '@react-native-firebase/firestore';
 import { COLLECTIONS } from './collections';
 
 export interface TrekDocument {
@@ -32,11 +32,12 @@ class TrekService {
     }
 
     try {
-      const snapshot = await firestore().collection(COLLECTIONS.TREKS).get();
-      const treks = snapshot.docs.map(doc => {
-        const data = doc.data();
+      const db = getFirestore();
+      const snapshot = await getDocs(collection(db, COLLECTIONS.TREKS));
+      const treks = snapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
         return {
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
         } as TrekDocument;
       });
@@ -51,9 +52,11 @@ class TrekService {
 
   public async getTrekById(id: string): Promise<TrekDocument | null> {
     try {
-      const doc = await firestore().collection(COLLECTIONS.TREKS).doc(id).get();
-      if (doc.data()) {
-        return { id: doc.id, ...doc.data() } as TrekDocument;
+      const db = getFirestore();
+      const docRef = doc(db, COLLECTIONS.TREKS, id);
+      const docSnapshot = await getDoc(docRef);
+      if (docSnapshot.exists()) {
+        return { id: docSnapshot.id, ...docSnapshot.data() } as TrekDocument;
       }
       return null;
     } catch (error) {

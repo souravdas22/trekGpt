@@ -18,13 +18,12 @@ interface AiRecommendationCardProps {
   difficulty: string;
   price: string;
   imageUrl?: string;
-  imageSource?: any;
   onGenerateItinerary?: () => void;
   onGeneratePackingList?: () => void;
 }
 
 export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({ 
-  id, title, location, days, difficulty, price, imageUrl, imageSource, onGenerateItinerary, onGeneratePackingList
+  id, title, location, days, difficulty, price, imageUrl, onGenerateItinerary, onGeneratePackingList
 }) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -50,7 +49,7 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
   return (
     <View style={styles.trekCard}>
       <View style={styles.trekCardImageContainer}>
-        <Image source={imageSource || {uri: imageUrl}} style={styles.trekCardImage} />
+        <Image source={{uri: imageUrl}} style={styles.trekCardImage} />
         <TouchableOpacity style={styles.favoriteBtn} onPress={handleSave}>
           <Icon name={isLiked ? "heart" : "heart-outline"} size={16} color={isLiked ? "#EF4444" : colors.text} />
         </TouchableOpacity>
