@@ -18,6 +18,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { trekService } from '../../services/firebase/trek.service';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
@@ -27,32 +28,7 @@ const HERO_HEIGHT = SCREEN_HEIGHT * 0.48;
 
 type Tab = 'Overview' | 'Itinerary' | 'Inclusions' | 'Reviews';
 
-const ROUTE_WAYPOINTS = [
-  { id: '1', day: 'Day 1', title: 'Sankri to Taluka', distance: '6 km', time: '3-4 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '2', day: 'Day 2', title: 'Taluka to Osla', distance: '7 km', time: '4-5 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '3', day: 'Day 3', title: 'Osla to Har Ki Dun', distance: '9 km', time: '5-6 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '4', day: 'Day 4', title: 'Har Ki Dun to Osla', distance: '9 km', time: '5-6 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '5', day: 'Day 5', title: 'Osla to Seema', distance: '7 km', time: '4-5 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '6', day: 'Day 6', title: 'Seema to Sankri', distance: '6 km', time: '3-4 hrs', image: require('@assets/images/splash_bg.png') },
-  { id: '7', day: 'Day 7', title: 'Departure from Sankri', distance: '', time: '', image: null },
-];
-
-const REVIEWS = [
-  {
-    id: '1',
-    author: 'Rohit Sharma',
-    avatar: 'account-circle',
-    rating: 5.0,
-    date: '12 May 2024',
-    text: 'Absolutely loved this trek! The views, the villages, everything was just perfect. Our guide was amazing and very supportive.',
-    images: [
-      require('@assets/images/splash_bg.png'),
-      require('@assets/images/splash_bg.png'),
-      require('@assets/images/splash_bg.png'),
-      require('@assets/images/splash_bg.png'),
-    ]
-  },
-];
+// Static fallback data removed, fetching dynamically from Firestore
 
 interface TrekDetailsScreenProps {
   navigation?: any;
@@ -68,54 +44,43 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
   const dispatch = useDispatch();
 
   const passedTrek = route?.params?.trek || {};
+  
+  const [reviews, setReviews] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (passedTrek.id) {
+       trekService.getTrekReviews(passedTrek.id).then(dbReviews => {
+          setReviews(dbReviews);
+       });
+    }
+  }, [passedTrek.id]);
+
   const trek = {
-    id: '2',
-    name: 'Har Ki Dun',
-    location: 'Uttarakhand, India',
-    rating: 4.7,
-    reviewCount: 286,
-    tags: ['Valley Trek', 'Beginner Friendly', 'All Season'],
-    duration: '7 Days',
-    distance: '50 km',
-    difficulty: 'Moderate',
-    maxAltitude: '11,700 ft',
-    image: require('@assets/images/splash_bg.png'),
-    photoCount: 32,
-    price: '9,800',
-    description:
-      'Har Ki Dun is a beautiful valley nestled in the Govind Wildlife Sanctuary. Surrounded by the majestic peaks of the Himalayas, this trek is a perfect blend of adventure, scenic beauty and cultural experience.',
-    highlights: [
-      { icon: 'image-outline', text: 'Stunning views of Swargarohini & Bandarpoonch' },
-      { icon: 'home-outline', text: 'Explore Osla village and local culture' },
-      { icon: 'pine-tree', text: 'Walk through lush green valleys and pine forests' },
-      { icon: 'bridge', text: 'Cross rivers, meadows and wooden bridges' },
-    ],
-    bestTime: [
-      { months: 'Mar–Jun', season: 'Spring / Summer', icon: 'flower-outline', active: false },
-      { months: 'Jul–Sep', season: 'Monsoon', icon: 'weather-pouring', active: false },
-      { months: 'Oct–Nov', season: 'Autumn', icon: 'leaf', active: true },
-      { months: 'Dec–Feb', season: 'Winter', icon: 'snowflake', active: false },
-    ],
-    inclusions: [
-      'Experienced trek leader',
-      'Permits and forest entry fees',
-      'Accommodation (guest houses/tents)',
-      'Meals (Veg) during the trek',
-      'First aid and medical support'
-    ],
-    essentials: [
-      { icon: 'bag-personal', title: 'Backpack', subtitle: '50-60 L' },
-      { icon: 'shoe-print', title: 'Shoes', subtitle: 'Trekking' },
-      { icon: 'tshirt-crew-outline', title: 'Clothing', subtitle: 'Layered' },
-      { icon: 'run', title: 'Fitness', subtitle: 'Moderate' },
-    ],
-    provider: {
-      name: 'Himalayan Trails',
-      rating: 4.6,
-      reviewCount: '1.2k',
-      logo: 'image-outline'
-    },
-    ...passedTrek
+    id: passedTrek.id || 'unknown',
+    name: passedTrek.name || 'Unknown Trek',
+    location: passedTrek.location || 'Unknown Location',
+    rating: passedTrek.rating || 4.5,
+    reviewCount: passedTrek.reviewCount || 0,
+    tags: passedTrek.tags || ['Adventure'],
+    duration: passedTrek.durationDays ? `${passedTrek.durationDays} Days` : (passedTrek.duration || 'Unknown'),
+    distance: passedTrek.distanceKm ? `${passedTrek.distanceKm} km` : (passedTrek.distance || '-'),
+    difficulty: passedTrek.difficulty || 'Moderate',
+    maxAltitude: passedTrek.maxAltitudeFt ? `${passedTrek.maxAltitudeFt} ft` : '-',
+    image: passedTrek.imageUrl ? { uri: passedTrek.imageUrl } : (passedTrek.image || { uri: 'https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80' }),
+    photoCount: 1,
+    price: passedTrek.estimatedCost || passedTrek.price || '-',
+    description: passedTrek.description || 'No description available for this trek.',
+    highlights: passedTrek.highlights || [],
+    bestTime: passedTrek.bestTime || [],
+    inclusions: passedTrek.inclusions || [],
+    essentials: passedTrek.essentials || [],
+    itinerary: passedTrek.itinerary || [],
+    provider: passedTrek.provider || {
+      name: 'Local Guides',
+      rating: 4.5,
+      reviewCount: 0,
+      logoUrl: undefined
+    }
   };
 
   const isSaved = useSelector((state: RootState) => state.savedTreks.savedTreks.some(t => t.id === trek.id));
@@ -325,26 +290,26 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
               </View>
 
               <View style={styles.timelineContainer}>
-                 {ROUTE_WAYPOINTS.map((wp: any, index: number) => (
-                   <View key={wp.id} style={styles.waypointRow}>
+                 {trek.itinerary.map((wp: any, index: number) => (
+                   <View key={wp.dayNumber || index} style={styles.waypointRow}>
                      {/* Timeline */}
                      <View style={styles.timelineCol}>
                        <View style={styles.timelineDot} />
-                       {index < ROUTE_WAYPOINTS.length - 1 && (
+                       {index < trek.itinerary.length - 1 && (
                          <View style={styles.timelineLine} />
                        )}
                      </View>
                      {/* Info */}
                      <View style={styles.waypointInfo}>
-                       <Text style={styles.waypointDay}>{wp.day}</Text>
+                       <Text style={styles.waypointDay}>Day {wp.dayNumber}</Text>
                        <Text style={styles.waypointTitle}>{wp.title}</Text>
-                       {wp.distance ? (
-                         <Text style={styles.waypointMetaText}>{wp.distance} • {wp.time}</Text>
+                       {wp.distanceStr ? (
+                         <Text style={styles.waypointMetaText}>{wp.distanceStr} • {wp.timeStr}</Text>
                        ) : null}
                      </View>
                      {/* Image */}
-                     {wp.image && (
-                        <Image source={wp.image} style={styles.waypointImage} />
+                     {wp.imageUrl && (
+                        <Image source={{ uri: wp.imageUrl }} style={styles.waypointImage} />
                      )}
                    </View>
                  ))}
@@ -390,41 +355,41 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
                  </TouchableOpacity>
               </View>
 
-              {REVIEWS.map(r => (
-                <View key={r.id} style={styles.reviewCard}>
-                  <View style={styles.reviewHeader}>
-                    <View style={styles.reviewAvatar}>
-                      <Icon name={r.avatar} size={28} color={colors.muted} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.reviewAuthorRow}>
-                         <Text style={styles.reviewAuthor}>{r.author}</Text>
-                         <Icon name="check-decagram" size={14} color={colors.accent} style={{marginLeft: 4, marginRight: 2}} />
-                         <Text style={styles.verifiedText}>Verified Buyer</Text>
+              {reviews.length === 0 ? (
+                 <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 20 }}>No reviews yet.</Text>
+              ) : (
+                reviews.map(r => (
+                  <View key={r.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <View style={styles.reviewAvatar}>
+                        <Icon name={'account-circle'} size={28} color={colors.muted} />
                       </View>
-                      <Text style={styles.reviewDate}>{r.date}</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.reviewAuthorRow}>
+                           <Text style={styles.reviewAuthor}>{r.authorName}</Text>
+                           <Icon name="check-decagram" size={14} color={colors.accent} style={{marginLeft: 4, marginRight: 2}} />
+                           <Text style={styles.verifiedText}>Verified Buyer</Text>
+                        </View>
+                        <Text style={styles.reviewDate}>{r.date}</Text>
+                      </View>
                     </View>
+                    <View style={styles.starsRow}>
+                      {Array.from({ length: Math.floor(r.rating) }).map((_: any, i: number) => (
+                        <Icon key={i} name="star" size={16} color={colors.accent} />
+                      ))}
+                      <Text style={styles.ratingNumber}>{Number(r.rating).toFixed(1)}</Text>
+                    </View>
+                    <Text style={styles.reviewText}>{r.text}</Text>
+                    {r.imageUrls && r.imageUrls.length > 0 && (
+                      <View style={styles.reviewImagesGrid}>
+                         {r.imageUrls.map((img: string, i: number) => (
+                            <Image key={i} source={{ uri: img }} style={styles.reviewImage} />
+                         ))}
+                      </View>
+                    )}
                   </View>
-                  <View style={styles.starsRow}>
-                    {Array.from({ length: Math.floor(r.rating) }).map((_: any, i: number) => (
-                      <Icon key={i} name="star" size={16} color={colors.accent} />
-                    ))}
-                    <Text style={styles.ratingNumber}>{r.rating.toFixed(1)}</Text>
-                  </View>
-                  <Text style={styles.reviewText}>{r.text}</Text>
-                  <View style={styles.reviewImagesGrid}>
-                     {r.images.map((img: any, i: number) => (
-                        <Image key={i} source={img} style={styles.reviewImage} />
-                     ))}
-                  </View>
-                  <View style={styles.paginationDots}>
-                     <View style={[styles.dot, styles.dotActive]} />
-                     <View style={styles.dot} />
-                     <View style={styles.dot} />
-                     <View style={styles.dot} />
-                  </View>
-                </View>
-              ))}
+                ))
+              )}
             </View>
           )}
 

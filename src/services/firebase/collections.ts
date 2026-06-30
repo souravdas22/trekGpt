@@ -8,6 +8,8 @@ export const COLLECTIONS = {
   ACHIEVEMENTS: 'achievements',
   AI_CHATS: 'ai_chats',
   TREKS: 'treks',
+  CATEGORIES: 'categories',
+  THEMES: 'themes',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];

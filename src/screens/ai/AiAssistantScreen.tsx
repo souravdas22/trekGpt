@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAppTheme } from '@hooks/useAppTheme';
@@ -29,6 +30,25 @@ const suggestions = [
   { icon: 'tent', text: 'Weekend Getaways' },
 ];
 
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
+
 export const AiAssistantScreen = ({ navigation }: any) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -36,7 +56,7 @@ export const AiAssistantScreen = ({ navigation }: any) => {
   const [inputText, setInputText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { messages, isTyping, sendMessage, appendCustomMessage, clearChat } = useAiChat();
+  const { messages, isTyping, isFetchingHistory, sendMessage, appendCustomMessage, clearChat } = useAiChat();
   const { getTrekRecommendation, generateAndSaveItinerary, generateAndSavePackingList, isLoading: isGeminiLoading } = useGemini();
 
   useEffect(() => {
@@ -114,93 +134,118 @@ export const AiAssistantScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Context Card */}
-        {messages.length === 0 && (
-          <View style={styles.contextCard}>
-            <View style={styles.contextCardHeader}>
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                <Icon name="crosshairs-gps" size={16} color={colors.accent} style={{marginRight: 8}} />
-                <Text style={styles.contextCardTitle}>Your trip context</Text>
+        {isFetchingHistory ? (
+          <View style={{ paddingHorizontal: normalize(22), marginTop: normalize(8) }}>
+            <View style={[styles.contextCard, { borderColor: 'transparent', height: normalize(120), justifyContent: 'center', marginHorizontal: 0 }]}>
+              <SkeletonItem style={{ width: '40%', height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(24) }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <SkeletonItem style={{ width: '25%', height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                <SkeletonItem style={{ width: '25%', height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                <SkeletonItem style={{ width: '25%', height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
               </View>
-              <TouchableOpacity style={styles.editBtn}>
-                <Icon name="pencil" size={12} color={colors.muted} style={{marginRight: 4}} />
-                <Text style={styles.editBtnText}>Edit</Text>
-              </TouchableOpacity>
             </View>
             
-            <View style={styles.contextRow}>
-              <View style={styles.contextItem}>
-                <Icon name="map-marker" size={24} color={colors.accent} />
-                <View style={styles.contextItemTexts}>
-                  <Text style={styles.contextItemLabel}>From</Text>
-                  <Text style={styles.contextItemValue}>Kolkata</Text>
-                </View>
-              </View>
-              <View style={styles.contextDivider} />
-              <View style={styles.contextItem}>
-                <Icon name="wallet" size={24} color={colors.accent} />
-                <View style={styles.contextItemTexts}>
-                  <Text style={styles.contextItemLabel}>Budget</Text>
-                  <Text style={styles.contextItemValue}>₹12,000</Text>
-                </View>
-              </View>
-              <View style={styles.contextDivider} />
-              <View style={styles.contextItem}>
-                <Icon name="shoe-print" size={24} color={colors.accent} />
-                <View style={styles.contextItemTexts}>
-                  <Text style={styles.contextItemLabel}>Experience</Text>
-                  <Text style={styles.contextItemValue}>Beginner</Text>
-                </View>
-              </View>
+            <View style={{ marginTop: normalize(32), flexDirection: 'row', gap: normalize(12) }}>
+              <SkeletonItem style={{ width: normalize(90), height: normalize(90), backgroundColor: colors.surface, borderRadius: normalize(16) }} />
+              <SkeletonItem style={{ width: normalize(90), height: normalize(90), backgroundColor: colors.surface, borderRadius: normalize(16) }} />
+              <SkeletonItem style={{ width: normalize(90), height: normalize(90), backgroundColor: colors.surface, borderRadius: normalize(16) }} />
+            </View>
+
+            <View style={{ marginTop: normalize(40), gap: normalize(16) }}>
+              <SkeletonItem style={{ width: '70%', height: normalize(60), backgroundColor: colors.surface, borderRadius: normalize(16), alignSelf: 'flex-end', borderBottomRightRadius: normalize(4) }} />
+              <SkeletonItem style={{ width: '60%', height: normalize(80), backgroundColor: colors.surface, borderRadius: normalize(16), alignSelf: 'flex-start', borderBottomLeftRadius: normalize(4) }} />
             </View>
           </View>
+        ) : (
+          <>
+            {/* Context Card */}
+            {messages.length === 0 && (
+              <View style={styles.contextCard}>
+                <View style={styles.contextCardHeader}>
+                  <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                    <Icon name="crosshairs-gps" size={16} color={colors.accent} style={{marginRight: 8}} />
+                    <Text style={styles.contextCardTitle}>Your trip context</Text>
+                  </View>
+                  <TouchableOpacity style={styles.editBtn}>
+                    <Icon name="pencil" size={12} color={colors.muted} style={{marginRight: 4}} />
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.contextRow}>
+                  <View style={styles.contextItem}>
+                    <Icon name="map-marker" size={24} color={colors.accent} />
+                    <View style={styles.contextItemTexts}>
+                      <Text style={styles.contextItemLabel}>From</Text>
+                      <Text style={styles.contextItemValue}>Kolkata</Text>
+                    </View>
+                  </View>
+                  <View style={styles.contextDivider} />
+                  <View style={styles.contextItem}>
+                    <Icon name="wallet" size={24} color={colors.accent} />
+                    <View style={styles.contextItemTexts}>
+                      <Text style={styles.contextItemLabel}>Budget</Text>
+                      <Text style={styles.contextItemValue}>₹12,000</Text>
+                    </View>
+                  </View>
+                  <View style={styles.contextDivider} />
+                  <View style={styles.contextItem}>
+                    <Icon name="shoe-print" size={24} color={colors.accent} />
+                    <View style={styles.contextItemTexts}>
+                      <Text style={styles.contextItemLabel}>Experience</Text>
+                      <Text style={styles.contextItemValue}>Beginner</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Suggestions */}
+            {messages.length === 0 && (
+              <View style={styles.suggestionsContainer}>
+                <Text style={styles.suggestionsTitle}>Try asking about</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
+                  {suggestions.map((item, index) => (
+                    <TouchableOpacity key={index} style={styles.suggestionChip} onPress={() => handleSuggestionPress(item)}>
+                      <Icon name={item.icon} size={24} color={colors.accent} style={{marginBottom: 8}} />
+                      <Text style={styles.suggestionChipText}>{item.text}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Chat Area */}
+            <View style={styles.chatArea}>
+              {messages.map((msg) => {
+                // Prevent rendering an empty bubble if the TypingIndicator is already handling the loading state
+                if (msg.role === 'model' && !msg.text.trim() && !msg.componentType && (isTyping || isGeminiLoading)) {
+                  return null;
+                }
+
+                if (msg.componentType === 'recommendation' && msg.componentData) {
+                  return (
+                    <AiRecommendationCard
+                      key={msg.id}
+                      id={msg.componentData.id || Math.random().toString(36).substring(7)}
+                      title={msg.componentData.name}
+                      location={msg.componentData.location}
+                      days={`${msg.componentData.durationDays} Days`}
+                      difficulty={msg.componentData.difficulty}
+                      price={msg.componentData.estimatedCost}
+                      imageUrl={msg.componentData.imageUrl || "https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80"}
+                      onGenerateItinerary={() => handleGenerateItinerary(msg.componentData.name)}
+                      onGeneratePackingList={() => handleGeneratePackingList(msg.componentData.name)}
+                    />
+                  );
+                }
+                return <ChatBubble key={msg.id} message={msg} />;
+              })}
+              
+              {(isTyping || isGeminiLoading) && <TypingIndicator />}
+            </View>
+          </>
         )}
-
-        {/* Suggestions */}
-        {messages.length === 0 && (
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Try asking about</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
-              {suggestions.map((item, index) => (
-                <TouchableOpacity key={index} style={styles.suggestionChip} onPress={() => handleSuggestionPress(item)}>
-                  <Icon name={item.icon} size={24} color={colors.accent} style={{marginBottom: 8}} />
-                  <Text style={styles.suggestionChipText}>{item.text}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Chat Area */}
-        <View style={styles.chatArea}>
-          {messages.map((msg) => {
-            // Prevent rendering an empty bubble if the TypingIndicator is already handling the loading state
-            if (msg.role === 'model' && !msg.text.trim() && !msg.componentType && (isTyping || isGeminiLoading)) {
-              return null;
-            }
-
-            if (msg.componentType === 'recommendation' && msg.componentData) {
-              return (
-                <AiRecommendationCard
-                  key={msg.id}
-                  id={msg.componentData.id || Math.random().toString(36).substring(7)}
-                  title={msg.componentData.name}
-                  location={msg.componentData.location}
-                  days={`${msg.componentData.durationDays} Days`}
-                  difficulty={msg.componentData.difficulty}
-                  price={msg.componentData.estimatedCost}
-                  imageUrl={msg.componentData.imageUrl || "https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80"}
-                  onGenerateItinerary={() => handleGenerateItinerary(msg.componentData.name)}
-                  onGeneratePackingList={() => handleGeneratePackingList(msg.componentData.name)}
-                />
-              );
-            }
-            return <ChatBubble key={msg.id} message={msg} />;
-          })}
-          
-          {(isTyping || isGeminiLoading) && <TypingIndicator />}
-        </View>
-
       </ScrollView>
 
       {/* ── Input Area ── */}

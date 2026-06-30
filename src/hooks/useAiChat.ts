@@ -18,6 +18,7 @@ export type ChatMessage = {
 export const useAiChat = (initialSessionId?: string) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId || null);
   
@@ -39,6 +40,7 @@ export const useAiChat = (initialSessionId?: string) => {
   // Load initial session if provided or latest session
   useEffect(() => {
     const loadSession = async () => {
+      setIsFetchingHistory(true);
       let idToLoad = initialSessionId;
 
       if (!idToLoad) {
@@ -78,6 +80,7 @@ export const useAiChat = (initialSessionId?: string) => {
           setError('Failed to load previous chat history.');
         }
       }
+      setIsFetchingHistory(false);
     };
     loadSession();
   }, [initialSessionId]);
@@ -226,6 +229,7 @@ export const useAiChat = (initialSessionId?: string) => {
   return {
     messages,
     isTyping,
+    isFetchingHistory,
     error,
     sessionId,
     sendMessage,

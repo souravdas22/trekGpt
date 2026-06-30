@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Dimensions,
   ScrollView,
   ImageBackground,
+  Modal,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -22,19 +24,13 @@ import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType, colors } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
 import LinearGradient from 'react-native-linear-gradient';
+import { trekService, TrekDocument } from '../../services/firebase/trek.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ── Data ─────────────────────────────────────────────────────────────────────
 
-type Category = 'All' | 'Mountain' | 'Forest' | 'Winter' | 'Lakes' | 'Weekend' | 'Adventure';
-
-interface Trek {
-  id: string;
-  name: string;
-  location: string;
-  price: number;
-  difficulty: 'Easy' | 'Moderate' | 'Hard' | 'Expert';
+type Trek = TrekDocument & {
+  price: string | number;
   rating: number;
   category: string;
   duration: string;
@@ -43,104 +39,7 @@ interface Trek {
   image: any;
   badge?: string;
   badgeColor?: string;
-}
-
-const CATEGORIES: Category[] = ['All', 'Mountain', 'Forest', 'Winter', 'Lakes', 'Weekend', 'Adventure'];
-
-const FEATURED_TREKS: Trek[] = [
-  {
-    id: 'f1',
-    name: 'Kedarkantha',
-    location: 'Uttarakhand, India',
-    price: 6500,
-    difficulty: 'Easy',
-    rating: 4.6,
-    category: 'Winter',
-    duration: '6 Days',
-    distance: '20km',
-    description: 'One of India\'s most popular winter treks.',
-    image: require('../../assets/images/trek-images/Kedarkantha.jpg'),
-    badge: 'Best for Beginners',
-    badgeColor: colors.accent,
-  },
-  {
-    id: 'f2',
-    name: 'Sandakphu',
-    location: 'West Bengal, India',
-    price: 7900,
-    difficulty: 'Moderate',
-    rating: 4.7,
-    category: 'Mountain',
-    duration: '6 Days',
-    distance: '57km',
-    description: 'Trek to the highest peak in West Bengal.',
-    image: require('../../assets/images/trek-images/Sandakphu Phalut.jpg'),
-    badge: 'Great Views',
-    badgeColor: '#60A5FA',
-  },
-];
-
-const POPULAR_TREKS: Trek[] = [
-  {
-    id: 'p1',
-    name: 'Har Ki Dun',
-    location: 'Uttarakhand, India',
-    price: 9800,
-    difficulty: 'Moderate',
-    rating: 4.8,
-    category: 'Mountain',
-    duration: '7 Days',
-    distance: '50km',
-    description: 'A stunning valley trek in the Garhwal Himalayas.',
-    image: require('../../assets/images/trek-images/Har Ki Dun.jpg'),
-  },
-  {
-    id: 'p2',
-    name: 'Sandakphu',
-    location: 'West Bengal, India',
-    price: 7900,
-    difficulty: 'Moderate',
-    rating: 4.7,
-    category: 'Mountain',
-    duration: '6 Days',
-    distance: '57km',
-    description: 'Trek to the highest peak in West Bengal.',
-    image: require('../../assets/images/trek-images/Sandakphu Phalut.jpg'),
-  },
-  {
-    id: 'p3',
-    name: 'Dayara Bugyal',
-    location: 'Uttarakhand, India',
-    price: 6500,
-    difficulty: 'Easy',
-    rating: 4.5,
-    category: 'Forest',
-    duration: '5 Days',
-    distance: '22km',
-    description: 'A beautiful high-altitude meadow trek.',
-    image: require('../../assets/images/trek-images/Dayara Bugyal.jpeg'),
-  },
-  {
-    id: 'p4',
-    name: 'Roopkund',
-    location: 'Uttarakhand, India',
-    price: 8200,
-    difficulty: 'Hard',
-    rating: 4.9,
-    category: 'Mountain',
-    duration: '8 Days',
-    distance: '53km',
-    description: 'The mysterious skeleton lake trek.',
-    image: require('../../assets/images/trek-images/Roopkund Trek.jpg'),
-  },
-];
-
-const THEMES = [
-  { id: 't1', title: 'Weekend Treks', subtitle: 'Short & Sweet', icon: 'tent', image: require('../../assets/images/trek-images/Dayara Bugyal.jpeg') },
-  { id: 't2', title: 'Budget Treks', subtitle: 'Under ₹10,000', icon: 'wallet-outline', image: require('../../assets/images/trek-images/Sandakphu Phalut.jpg') },
-  { id: 't3', title: 'Winter Treks', subtitle: 'Snow Adventures', icon: 'snowflake', image: require('../../assets/images/trek-images/Kedarkantha.jpg') },
-  { id: 't4', title: 'Challenging Treks', subtitle: 'For Experienced', icon: 'image-filter-hdr', image: require('../../assets/images/trek-images/Roopkund Trek.jpg') },
-];
+};
 
 const DIFFICULTY_COLOR: Record<string, string> = {
   Easy: '#A3E635',
@@ -149,7 +48,24 @@ const DIFFICULTY_COLOR: Record<string, string> = {
   Expert: '#8B5CF6',
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.5)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
 
 export const ExploreScreen = () => {
   const colors = useAppTheme();
@@ -159,7 +75,79 @@ export const ExploreScreen = () => {
   const dispatch = useDispatch();
   const likedTrekIds = useSelector((state: RootState) => state.likedTreks.likedTrekIds);
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<Category>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [featuredTreks, setFeaturedTreks] = useState<Trek[]>([]);
+  const [popularTreks, setPopularTreks] = useState<Trek[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [themes, setThemes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Filter states
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [filterDifficulty, setFilterDifficulty] = useState<string[]>([]);
+  const [filterDuration, setFilterDuration] = useState<string[]>([]);
+  const [filterPrice, setFilterPrice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchExploreData = async () => {
+      try {
+        const [dbTreks, dbCategories, dbThemes] = await Promise.all([
+          trekService.getAllTreks(true),
+          trekService.getCategories(),
+          trekService.getThemes()
+        ]);
+      
+      const mapTrek = (t: TrekDocument, index: number, type: 'featured' | 'popular'): Trek => {
+        const badgeColors = [colors.accent, '#60A5FA', '#A3E635', '#F59E0B'];
+        return {
+          ...t,
+          id: t.id,
+          name: t.name || 'Unknown Trek',
+          location: t.location || 'Unknown Location',
+          price: t.estimatedCost || 'Contact for price',
+          difficulty: t.difficulty || 'Moderate',
+          rating: 4.5, // Fallback
+          category: t.category || (t.keywords && t.keywords.length > 0 ? t.keywords[0] : 'Mountain'),
+          duration: t.durationDays ? `${t.durationDays} Days` : 'Unknown Duration',
+          distance: t.distanceKm ? `${t.distanceKm} km` : 'Unknown km',
+          description: t.description || '', 
+          image: t.imageUrl ? { uri: t.imageUrl } : { uri: 'https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80' }, // Fallback generic image
+          badge: type === 'featured' ? (index === 0 ? 'Best for Beginners' : 'Great Views') : undefined,
+          badgeColor: type === 'featured' ? badgeColors[index % badgeColors.length] : undefined,
+        };
+      };
+
+      const featured = dbTreks.filter(t => t.isFeatured).map((t, i) => mapTrek(t, i, 'featured'));
+      const popular = dbTreks.filter(t => t.isPopular).map((t, i) => mapTrek(t, i, 'popular'));
+
+      setFeaturedTreks(featured);
+      setPopularTreks(popular);
+      
+      if (dbCategories.length > 0) {
+        const sortedNames = dbCategories.sort((a, b) => (a.order || 0) - (b.order || 0)).map(c => c.name);
+        setCategories(Array.from(new Set(['All', ...sortedNames])));
+      } else {
+        setCategories(['All', 'Mountain', 'Forest', 'Winter', 'Lakes']); // Fallback
+      }
+      
+        if (dbThemes.length > 0) {
+          setThemes(dbThemes.filter(t => t.isActive !== false));
+        } else {
+          // Fallback themes if DB is empty
+          setThemes([
+            { id: 't1', title: 'Weekend Treks', subtitle: 'Short & Sweet', icon: 'tent', imageUrl: '' },
+            { id: 't2', title: 'Budget Treks', subtitle: 'Under ₹10,000', icon: 'wallet-outline', imageUrl: '' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching explore data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchExploreData();
+  }, [colors.accent]);
 
   const renderFeatured = () => (
     <View style={styles.sectionContainer}>
@@ -170,7 +158,18 @@ export const ExploreScreen = () => {
         </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredScroll}>
-        {FEATURED_TREKS.map((trek) => (
+        {isLoading ? (
+          [1, 2, 3].map((key) => (
+            <View key={key} style={[styles.featuredCard, { backgroundColor: colors.surface }]}>
+              <View style={{ flex: 1 }} />
+              <View style={{ padding: normalize(16), gap: normalize(8) }}>
+                <SkeletonItem style={{ width: '60%', height: normalize(20), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                <SkeletonItem style={{ width: '40%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+              </View>
+            </View>
+          ))
+        ) : (
+          featuredTreks.map((trek) => (
           <TouchableOpacity 
             key={trek.id} 
             style={styles.featuredCard} 
@@ -201,17 +200,17 @@ export const ExploreScreen = () => {
                 <View style={styles.featuredMetaRow}>
                   <View style={styles.featuredMetaLeft}>
                     <Text style={styles.metaText}>{trek.duration} · </Text>
-                    <Text style={[styles.metaText, { color: DIFFICULTY_COLOR[trek.difficulty] }]}>{trek.difficulty}</Text>
+                    <Text style={[styles.metaText, { color: DIFFICULTY_COLOR[trek.difficulty] || '#F59E0B' }]}>{trek.difficulty}</Text>
                     <Text style={styles.metaText}> · </Text>
                     <Icon name="star" size={14} color="#F59E0B" />
                     <Text style={styles.metaText}> {trek.rating}</Text>
                   </View>
-                  <Text style={styles.featuredPrice}>₹{trek.price.toLocaleString('en-IN')}</Text>
+                  <Text style={styles.featuredPrice}>{typeof trek.price === 'number' ? `₹${trek.price.toLocaleString('en-IN')}` : trek.price}</Text>
                 </View>
               </View>
             </ImageBackground>
           </TouchableOpacity>
-        ))}
+        )))}
       </ScrollView>
       <View style={styles.paginationDots}>
         <View style={[styles.dot, styles.dotActive]} />
@@ -232,7 +231,19 @@ export const ExploreScreen = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.popularList}>
-        {POPULAR_TREKS.map((trek) => (
+        {isLoading ? (
+          [1, 2, 3].map((key) => (
+            <View key={key} style={[styles.popularCard, { borderColor: 'transparent' }]}>
+              <SkeletonItem style={[styles.popularImage, { backgroundColor: colors.surface }]} />
+              <View style={[styles.popularInfo, { gap: normalize(8) }]}>
+                <SkeletonItem style={{ width: '80%', height: normalize(16), backgroundColor: colors.surface, borderRadius: normalize(4) }} />
+                <SkeletonItem style={{ width: '50%', height: normalize(12), backgroundColor: colors.surface, borderRadius: normalize(4) }} />
+                <SkeletonItem style={{ width: '30%', height: normalize(12), backgroundColor: colors.surface, borderRadius: normalize(4) }} />
+              </View>
+            </View>
+          ))
+        ) : (
+          popularTreks.map((trek) => (
           <TouchableOpacity 
             key={trek.id} 
             style={styles.popularCard}
@@ -254,16 +265,16 @@ export const ExploreScreen = () => {
               <View style={styles.popularMetaRow}>
                 <View style={styles.popularMetaLeft}>
                   <Text style={styles.popularMetaText}>{trek.duration} · </Text>
-                  <Text style={[styles.popularMetaText, { color: DIFFICULTY_COLOR[trek.difficulty] }]}>{trek.difficulty}</Text>
+                  <Text style={[styles.popularMetaText, { color: DIFFICULTY_COLOR[trek.difficulty] || '#F59E0B' }]}>{trek.difficulty}</Text>
                   <Text style={styles.popularMetaText}> · </Text>
                   <Icon name="star" size={12} color="#F59E0B" />
                   <Text style={styles.popularMetaText}> {trek.rating}</Text>
                 </View>
-                <Text style={styles.popularPrice}>₹{trek.price.toLocaleString('en-IN')}</Text>
+                <Text style={styles.popularPrice}>{typeof trek.price === 'number' ? `₹${trek.price.toLocaleString('en-IN')}` : trek.price}</Text>
               </View>
             </View>
           </TouchableOpacity>
-        ))}
+        )))}
       </View>
     </View>
   );
@@ -272,15 +283,19 @@ export const ExploreScreen = () => {
     <View style={styles.sectionContainer}>
       <Text style={[styles.sectionTitle, { paddingHorizontal: normalize(20), marginBottom: normalize(14) }]}>Explore by Theme</Text>
       <View style={styles.themeGrid}>
-        {THEMES.map((theme) => (
+        {themes.map((theme) => (
           <TouchableOpacity key={theme.id} style={styles.themeCard} activeOpacity={0.9}>
-            <ImageBackground source={theme.image} style={styles.themeImage} imageStyle={styles.themeImageStyle}>
+            <ImageBackground 
+              source={theme.imageUrl ? { uri: theme.imageUrl } : require('../../assets/images/trek-images/Dayara Bugyal.jpeg')} 
+              style={styles.themeImage} 
+              imageStyle={styles.themeImageStyle}
+            >
               <LinearGradient
                 colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
                 style={StyleSheet.absoluteFill}
               />
               <View style={styles.themeContent}>
-                <Icon name={theme.icon} size={24} color={colors.text} style={styles.themeIcon} />
+                <Icon name={theme.icon || 'tent'} size={24} color={colors.text} style={styles.themeIcon} />
                 <View>
                   <Text style={styles.themeTitle}>{theme.title}</Text>
                   <Text style={styles.themeSubtitle}>{theme.subtitle}</Text>
@@ -304,7 +319,7 @@ export const ExploreScreen = () => {
             <Text style={styles.headerTitle}>Explore Treks</Text>
             <Text style={styles.headerSubtitle}>Discover your next adventure</Text>
           </View>
-          <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8} onPress={() => setIsFilterVisible(true)}>
             <Icon name="tune-variant" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
@@ -327,7 +342,7 @@ export const ExploreScreen = () => {
         {/* ── Category Chips ── */}
         <View style={styles.chipsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <TouchableOpacity
                 key={cat}
                 style={[styles.chip, activeCategory === cat && styles.chipActive]}
@@ -348,6 +363,108 @@ export const ExploreScreen = () => {
         
         <View style={{ height: normalize(40) }} />
       </ScrollView>
+
+      {/* ── Filter Modal ── */}
+      <Modal
+        visible={isFilterVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsFilterVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setIsFilterVisible(false)} />
+          <View style={styles.filterSheet}>
+            <View style={styles.filterDragHandle} />
+            
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterTitle}>Filters</Text>
+              <TouchableOpacity onPress={() => {
+                setFilterDifficulty([]);
+                setFilterDuration([]);
+                setFilterPrice(null);
+              }}>
+                <Text style={styles.resetText}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+              
+              {/* Difficulty Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Difficulty</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {['Easy', 'Moderate', 'Hard', 'Expert'].map(diff => {
+                    const isSelected = filterDifficulty.includes(diff);
+                    return (
+                      <TouchableOpacity 
+                        key={diff}
+                        style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
+                        onPress={() => {
+                          if (isSelected) setFilterDifficulty(prev => prev.filter(d => d !== diff));
+                          else setFilterDifficulty(prev => [...prev, diff]);
+                        }}
+                      >
+                        <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{diff}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Duration Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Duration</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {['1-3 Days', '4-7 Days', '8+ Days'].map(dur => {
+                    const isSelected = filterDuration.includes(dur);
+                    return (
+                      <TouchableOpacity 
+                        key={dur}
+                        style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
+                        onPress={() => {
+                          if (isSelected) setFilterDuration(prev => prev.filter(d => d !== dur));
+                          else setFilterDuration(prev => [...prev, dur]);
+                        }}
+                      >
+                        <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{dur}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Price Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Price Range</Text>
+                <View style={styles.filterOptionsGrid}>
+                  {['Under ₹5,000', '₹5,000 - ₹15,000', 'Above ₹15,000'].map(price => {
+                    const isSelected = filterPrice === price;
+                    return (
+                      <TouchableOpacity 
+                        key={price}
+                        style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
+                        onPress={() => setFilterPrice(isSelected ? null : price)}
+                      >
+                        <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{price}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={{ height: normalize(20) }} />
+            </ScrollView>
+            
+            <View style={styles.filterFooter}>
+              <TouchableOpacity style={styles.applyFilterBtn} onPress={() => setIsFilterVisible(false)}>
+                <Text style={styles.applyFilterText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -676,5 +793,106 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   themeSubtitle: {
     color: colors.muted,
     fontSize: normalizeFont(10),
+  },
+
+  // Filter Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFill,
+  },
+  filterSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: normalize(24),
+    borderTopRightRadius: normalize(24),
+    maxHeight: '80%',
+    paddingBottom: Platform.OS === 'ios' ? normalize(40) : normalize(20),
+  },
+  filterDragHandle: {
+    width: normalize(40),
+    height: normalize(4),
+    backgroundColor: colors.outline,
+    borderRadius: normalize(2),
+    alignSelf: 'center',
+    marginTop: normalize(12),
+    marginBottom: normalize(8),
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: normalize(20),
+    paddingVertical: normalize(16),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+  },
+  filterTitle: {
+    fontSize: normalizeFont(20),
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  resetText: {
+    fontSize: normalizeFont(14),
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  filterScroll: {
+    paddingHorizontal: normalize(20),
+    paddingTop: normalize(16),
+  },
+  filterSection: {
+    marginBottom: normalize(24),
+  },
+  filterSectionTitle: {
+    fontSize: normalizeFont(16),
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: normalize(12),
+  },
+  filterOptionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: normalize(10),
+  },
+  filterOptionChip: {
+    paddingHorizontal: normalize(16),
+    paddingVertical: normalize(10),
+    borderRadius: normalize(12),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  filterOptionChipSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  filterOptionText: {
+    fontSize: normalizeFont(13),
+    fontWeight: '500',
+    color: colors.muted,
+  },
+  filterOptionTextSelected: {
+    color: '#000',
+    fontWeight: '600',
+  },
+  filterFooter: {
+    paddingHorizontal: normalize(20),
+    paddingTop: normalize(16),
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  applyFilterBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: normalize(16),
+    paddingVertical: normalize(16),
+    alignItems: 'center',
+  },
+  applyFilterText: {
+    color: '#000',
+    fontSize: normalizeFont(16),
+    fontWeight: 'bold',
   },
 });
