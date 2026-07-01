@@ -10,7 +10,10 @@ import {
   Platform,
   Image,
   Dimensions,
+  RefreshControl,
+  Animated,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
 import { useAppTheme } from '@hooks/useAppTheme';
@@ -19,6 +22,25 @@ import { normalize, normalizeFont } from '@theme/normalize';
 import { communityService } from '../../services/firebase/community.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.5)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
 
 type Tab = 'Feed' | 'Circles' | 'Events' | 'Journeys';
 
@@ -49,32 +71,42 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
   const [discoverCircles, setDiscoverCircles] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  React.useEffect(() => {
-    const fetchCommunityData = async () => {
-      try {
-        setIsLoading(true);
-        const [storiesData, journeysData, circlesData, eventsData] = await Promise.all([
-          communityService.getStories(),
-          communityService.getJourneys(),
-          communityService.getCircles(),
-          communityService.getEvents(),
-        ]);
+  const fetchCommunityData = async () => {
+    try {
+      const [storiesData, journeysData, circlesData, eventsData] = await Promise.all([
+        communityService.getStories(),
+        communityService.getJourneys(),
+        communityService.getCircles(),
+        communityService.getEvents(),
+      ]);
 
-        setStories(storiesData);
-        setTrendingJourneys(journeysData.trending);
-        setFeaturedJourneys(journeysData.featured);
-        setJourneysList(journeysData.list);
-        setPopularCircles(circlesData.popular);
-        setMyCircles(circlesData.my);
-        setDiscoverCircles(circlesData.discover);
-        setUpcomingEvents(eventsData);
-      } catch (e) {
-        console.error('Error fetching community data', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      setStories(storiesData);
+      setTrendingJourneys(journeysData.trending);
+      setFeaturedJourneys(journeysData.featured);
+      setJourneysList(journeysData.list);
+      setPopularCircles(circlesData.popular);
+      setMyCircles(circlesData.my);
+      setDiscoverCircles(circlesData.discover);
+      setUpcomingEvents(eventsData);
+    } catch (e) {
+      console.error('Error fetching community data', e);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsLoading(true);
+      fetchCommunityData();
+    }, [])
+  );
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
     fetchCommunityData();
   }, []);
 
@@ -143,7 +175,13 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
         {activeTab === 'Feed' ? (
           <>
         {/* ── Stories ── */}
@@ -159,7 +197,14 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
               </TouchableOpacity>
               <Text style={styles.storyName}>Your story</Text>
             </View>
-            {isLoading ? null : stories.map(story => (
+            {isLoading ? (
+              [1, 2, 3, 4].map((_, index) => (
+                <View key={`skeleton-story-${index}`} style={styles.storyItem}>
+                  <SkeletonItem style={[styles.storyAvatarWrap, { backgroundColor: colors.outline, borderWidth: 0 }]} />
+                  <SkeletonItem style={{ width: '80%', height: normalize(12), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                </View>
+              ))
+            ) : stories.map(story => (
               <View key={story.id} style={styles.storyItem}>
                 <View style={styles.storyAvatarWrap}>
                   <Image source={renderImage(story.avatar)} style={styles.storyAvatar} />
@@ -178,7 +223,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <TouchableOpacity><Text style={styles.viewAllText}>See all</Text></TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            {isLoading ? null : trendingJourneys.map(journey => (
+            {isLoading ? (
+              [1, 2].map((_, index) => (
+                <SkeletonItem key={`skeleton-trending-${index}`} style={[styles.journeyCard, { backgroundColor: colors.outline }]} />
+              ))
+            ) : trendingJourneys.map(journey => (
               <View key={journey.id} style={styles.journeyCard}>
                 <Image source={renderImage(journey.image)} style={styles.journeyImage} />
                 <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)', '#000']} style={styles.journeyGradient} />
@@ -228,7 +277,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <TouchableOpacity><Text style={styles.viewAllText}>See all</Text></TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            {isLoading ? null : popularCircles.map(circle => (
+            {isLoading ? (
+              [1, 2, 3].map((_, index) => (
+                <SkeletonItem key={`skeleton-popular-${index}`} style={[styles.circleCard, { backgroundColor: colors.outline }]} />
+              ))
+            ) : popularCircles.map(circle => (
               <View key={circle.id} style={styles.circleCard}>
                 <Image source={renderImage(circle.image)} style={styles.circleImage} />
                 <View style={styles.circleIconWrap}>
@@ -262,7 +315,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             </View>
 
             <View style={styles.eventsList}>
-              {isLoading ? null : upcomingEvents.map(event => (
+              {isLoading ? (
+                [1, 2, 3].map((_, index) => (
+                  <SkeletonItem key={`skeleton-event-${index}`} style={[styles.eventCard, { backgroundColor: colors.outline }]} />
+                ))
+              ) : upcomingEvents.map(event => (
                 <View key={event.id} style={styles.eventCard}>
                   <Image source={renderImage(event.image)} style={styles.eventImage} />
                   
@@ -326,7 +383,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>My Circles</Text>
               <View style={{ height: normalize(14) }} />
-              {isLoading ? null : myCircles.map(circle => (
+              {isLoading ? (
+                [1].map((_, index) => (
+                  <SkeletonItem key={`skeleton-mycircle-${index}`} style={[styles.myCircleCard, { backgroundColor: colors.outline }]} />
+                ))
+              ) : myCircles.map(circle => (
                 <View key={circle.id} style={styles.myCircleCard}>
                   <Image source={renderImage(circle.image)} style={styles.myCircleImage} />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)', '#000']} style={styles.myCircleGradient} />
@@ -360,7 +421,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                 <TouchableOpacity><Text style={styles.viewAllText}>All Circles {'>'}</Text></TouchableOpacity>
               </View>
               <View style={styles.discoverList}>
-                {isLoading ? null : discoverCircles.map(circle => (
+                {isLoading ? (
+                  [1, 2, 3, 4].map((_, index) => (
+                    <SkeletonItem key={`skeleton-discover-${index}`} style={[styles.discoverCard, { backgroundColor: colors.outline }]} />
+                  ))
+                ) : discoverCircles.map(circle => (
                   <View key={circle.id} style={styles.discoverCard}>
                     <View style={styles.discoverImageContainer}>
                       <Image source={renderImage(circle.image)} style={styles.discoverImage} />
@@ -405,7 +470,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                 <TouchableOpacity><Text style={styles.viewAllText}>View all</Text></TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {isLoading ? null : featuredJourneys.map((journey) => (
+                {isLoading ? (
+                  [1, 2].map((_, index) => (
+                    <SkeletonItem key={`skeleton-featured-${index}`} style={[styles.featuredCard, { backgroundColor: colors.outline }]} />
+                  ))
+                ) : featuredJourneys.map((journey) => (
                   <View key={journey.id} style={styles.featuredCard}>
                     <View style={styles.featuredImageContainer}>
                       <Image source={renderImage(journey.image)} style={styles.featuredImage} />
@@ -486,7 +555,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
             {/* Journeys List Section */}
             <View style={styles.journeysList}>
-              {isLoading ? null : journeysList.map((journey) => (
+              {isLoading ? (
+                [1, 2, 3].map((_, index) => (
+                  <SkeletonItem key={`skeleton-journey-${index}`} style={[styles.journeyListItem, { backgroundColor: colors.outline }]} />
+                ))
+              ) : journeysList.map((journey) => (
                 <View key={journey.id} style={styles.journeyListItem}>
                   <View style={styles.journeyListImageContainer}>
                     <Image source={renderImage(journey.image)} style={styles.journeyListImage} />
