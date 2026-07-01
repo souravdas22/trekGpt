@@ -16,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
+import { communityService } from '../../services/firebase/community.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,298 +29,6 @@ const TABS: { id: Tab; icon: string }[] = [
   { id: 'Journeys', icon: 'compass-outline' },
 ];
 
-const STORIES = [
-  { id: '1', name: 'Tashi', avatar: require('@assets/images/splash_bg.png'), isOnline: true },
-  { id: '2', name: 'Priya', avatar: require('@assets/images/splash_bg.png'), isOnline: true },
-  { id: '3', name: 'Aman', avatar: require('@assets/images/splash_bg.png'), isOnline: false },
-  { id: '4', name: 'Neha', avatar: require('@assets/images/splash_bg.png'), isOnline: true },
-  { id: '5', name: 'Rohit', avatar: require('@assets/images/splash_bg.png'), isOnline: true },
-];
-
-const TRENDING_JOURNEYS = [
-  {
-    id: '1',
-    title: 'Sandakphu Sunrise Magic',
-    author: 'Tashi Sherpa',
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '6 Days',
-    location: 'Sandakphu',
-    description: 'The sunrise from Sandakphu was absolutely unreal.\nA dream come true! 🌅',
-    image: require('@assets/images/trek-images/Sandakphu Phalut.jpg'),
-    likes: '124',
-    comments: '24',
-    views: '1.2K',
-    imageCount: '1/10',
-  },
-  {
-    id: '2',
-    title: 'Valley of Flowers',
-    author: 'Priya Sharma',
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '5 Days',
-    location: 'Uttarakhand',
-    description: 'Blooms everywhere! The colors are just mesmerizing. 🌺',
-    image: require('@assets/images/trek-images/Valley of Flowers.jpg'),
-    likes: '342',
-    comments: '56',
-    views: '3.4K',
-    imageCount: '1/5',
-  }
-];
-
-const POPULAR_CIRCLES = [
-  {
-    id: '1',
-    name: 'West Bengal Trekkers',
-    members: '8.2k',
-    image: require('@assets/images/trek-images/Sandakphu Phalut.jpg'),
-    joined: false,
-  },
-  {
-    id: '2',
-    name: 'Himalayan Explorers',
-    members: '5.6k',
-    image: require('@assets/images/trek-images/Goechala Trek.jpg'),
-    joined: true,
-  },
-  {
-    id: '3',
-    name: 'Backpackers India',
-    members: '3.1k',
-    image: require('@assets/images/trek-images/Pin Parvati Pass.jpg'),
-    joined: false,
-  },
-];
-
-const UPCOMING_EVENTS = [
-  {
-    id: '1',
-    month: 'JUL',
-    day: '12',
-    weekday: 'SAT',
-    type: 'MEETUP',
-    title: 'Roopkund Trek Meetup',
-    location: 'Uttarakhand',
-    attendees: 48,
-    extraAttendees: 43,
-    image: require('@assets/images/trek-images/Roopkund Trek.jpg'),
-    going: true,
-  },
-  {
-    id: '2',
-    month: 'AUG',
-    day: '05',
-    weekday: 'MON',
-    type: 'FESTIVAL',
-    title: 'Trail Running Festival',
-    location: 'Manali, Himachal Pradesh',
-    attendees: 120,
-    extraAttendees: 115,
-    image: require('@assets/images/trek-images/Hampta Pass.jpg'),
-    going: false,
-  },
-  {
-    id: '3',
-    month: 'JUL',
-    day: '20',
-    weekday: 'SAT',
-    type: 'WORKSHOP',
-    title: 'Beginner Hiking Day',
-    location: 'Rishikesh, Uttarakhand',
-    attendees: 35,
-    extraAttendees: 30,
-    image: require('@assets/images/trek-images/Dayara Bugyal.jpeg'),
-    going: false,
-  },
-  {
-    id: '4',
-    month: 'AUG',
-    day: '15',
-    weekday: 'THU',
-    type: 'MEETUP',
-    title: 'Stargazing & Camping Night',
-    location: 'Chopta, Uttarakhand',
-    attendees: 27,
-    extraAttendees: 22,
-    image: require('@assets/images/trek-images/Ali Bedni Bugyal.jpeg'),
-    going: false,
-  },
-  {
-    id: '5',
-    month: 'SEP',
-    day: '02',
-    weekday: 'MON',
-    type: 'CLEANUP DRIVE',
-    title: 'Trek Clean-Up Drive',
-    location: 'Triund, Himachal Pradesh',
-    attendees: 62,
-    extraAttendees: 57,
-    image: require('@assets/images/trek-images/Kuari Pass.jpeg'),
-    going: false,
-  },
-];
-
-const MY_CIRCLES_DATA = [
-  {
-    id: '1',
-    name: 'Himalayan Trekkers',
-    members: '4,820',
-    type: 'High Altitude',
-    image: require('@assets/images/trek-images/Rupin Pass.jpg'),
-    extraMembers: 156,
-  }
-];
-
-const DISCOVER_CIRCLES_DATA = [
-  {
-    id: '1',
-    name: 'Weekend Hikers India',
-    members: '2,310',
-    type: 'Casual',
-    description: 'Short hikes, local trails and weekend adventures across India.',
-    image: require('@assets/images/trek-images/Kuari Pass.jpeg'),
-    extraMembers: 78,
-    joined: false,
-  },
-  {
-    id: '2',
-    name: 'Solo Trek Community',
-    members: '1,540',
-    type: 'Solo Travel',
-    description: 'For solo trekkers to connect, share stories and find trail buddies.',
-    image: require('@assets/images/trek-images/Buran Ghati.jpg'),
-    extraMembers: 62,
-    joined: true,
-  },
-  {
-    id: '3',
-    name: 'Photography on Trails',
-    members: '990',
-    type: 'Photography',
-    description: 'Capture the beauty of nature and share your best clicks.',
-    image: require('@assets/images/trek-images/Tarsar Marsar.jpg'),
-    extraMembers: 34,
-    joined: false,
-  },
-  {
-    id: '4',
-    name: 'Winter Trek Lovers',
-    members: '1,120',
-    type: 'Winter Treks',
-    description: 'For those who love snow, ice and epic winter adventures.',
-    image: require('@assets/images/trek-images/Chadar Trek.jpg'),
-    extraMembers: 45,
-    joined: false,
-  }
-];
-
-const FEATURED_JOURNEYS = [
-  {
-    id: '1',
-    badgeType: 'editor',
-    badgeText: "Editor's Pick",
-    title: 'Har Ki Dun Trek',
-    author: 'Tashi Sherpa',
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '7 Days',
-    location: 'Uttarakhand',
-    description: 'A memorable journey through the valley of Gods.',
-    image: require('@assets/images/trek-images/Har Ki Dun.jpg'),
-    likes: '256',
-    comments: '32',
-    imageCount: '18',
-  },
-  {
-    id: '2',
-    badgeType: 'trending',
-    badgeText: "Trending",
-    title: 'Kedarkantha in Winter',
-    author: 'Priya Negi',
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '6 Days',
-    location: 'Uttarakhand',
-    description: 'Snow, silence and stunning summits.',
-    image: require('@assets/images/trek-images/Kedarkantha.jpg'),
-    likes: '198',
-    comments: '28',
-    imageCount: '22',
-  },
-  {
-    id: '3',
-    badgeType: 'new',
-    badgeText: "New",
-    title: 'Chopta Camping',
-    author: 'Aman Rawat',
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '3 Days',
-    location: 'Uttarakhand',
-    description: 'Starry nights and peaceful mornings.',
-    image: require('@assets/images/trek-images/Bhrigu Lake.jpg'),
-    likes: '142',
-    comments: '19',
-    imageCount: '15',
-  }
-];
-
-const JOURNEYS_LIST_DATA = [
-  {
-    id: '1',
-    title: 'Sandakphu Trek',
-    author: 'Rohit Sharma',
-    isVerified: true,
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '5 Days',
-    location: 'West Bengal',
-    description: 'The sunrise at Sandakphu is something every trekker must experience once.',
-    tags: [
-      { text: 'Beginner Friendly', type: 'beginner' },
-      { text: 'Great Views', type: 'views' }
-    ],
-    price: '₹8,500',
-    rating: '4.8',
-    reviews: '86',
-    image: require('@assets/images/trek-images/Sandakphu Phalut.jpg'),
-    imageCount: '12',
-  },
-  {
-    id: '2',
-    title: 'Valley of Flowers Trek',
-    author: 'Neha Joshi',
-    isVerified: true,
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '6 Days',
-    location: 'Uttarakhand',
-    description: 'A visual treat with colorful flowers and majestic landscapes.',
-    tags: [
-      { text: 'Moderate', type: 'moderate' },
-      { text: 'Monsoon Trek', type: 'monsoon' }
-    ],
-    price: '₹11,200',
-    rating: '4.9',
-    reviews: '112',
-    image: require('@assets/images/trek-images/Valley of Flowers.jpg'),
-    imageCount: '16',
-  },
-  {
-    id: '3',
-    title: 'Brahmatal Trek',
-    author: 'Arjun Mehta',
-    isVerified: false,
-    authorAvatar: require('@assets/images/splash_bg.png'),
-    duration: '5 Days',
-    location: 'Uttarakhand',
-    description: 'Frozen lake, snowy trails and unforgettable views.',
-    tags: [
-      { text: 'Winter Trek', type: 'winter' },
-      { text: 'Moderate', type: 'moderate' }
-    ],
-    price: '₹9,300',
-    rating: '4.7',
-    reviews: '74',
-    image: require('@assets/images/trek-images/Brahmatal Trek.jpg'),
-    imageCount: '14',
-  }
-];
 
 interface CommunityScreenProps {
   navigation?: any;
@@ -330,6 +39,46 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const [activeTab, setActiveTab] = useState<Tab>('Feed');
+  
+  const [stories, setStories] = useState<any[]>([]);
+  const [trendingJourneys, setTrendingJourneys] = useState<any[]>([]);
+  const [featuredJourneys, setFeaturedJourneys] = useState<any[]>([]);
+  const [journeysList, setJourneysList] = useState<any[]>([]);
+  const [popularCircles, setPopularCircles] = useState<any[]>([]);
+  const [myCircles, setMyCircles] = useState<any[]>([]);
+  const [discoverCircles, setDiscoverCircles] = useState<any[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchCommunityData = async () => {
+      try {
+        setIsLoading(true);
+        const [storiesData, journeysData, circlesData, eventsData] = await Promise.all([
+          communityService.getStories(),
+          communityService.getJourneys(),
+          communityService.getCircles(),
+          communityService.getEvents(),
+        ]);
+
+        setStories(storiesData);
+        setTrendingJourneys(journeysData.trending);
+        setFeaturedJourneys(journeysData.featured);
+        setJourneysList(journeysData.list);
+        setPopularCircles(circlesData.popular);
+        setMyCircles(circlesData.my);
+        setDiscoverCircles(circlesData.discover);
+        setUpcomingEvents(eventsData);
+      } catch (e) {
+        console.error('Error fetching community data', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCommunityData();
+  }, []);
+
+  const renderImage = (src: any) => typeof src === 'string' ? { uri: src } : src;
 
   const renderFacepile = (size: number = 20, limit: number = 4) => (
     <View style={styles.facepileContainer}>
@@ -410,10 +159,10 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
               </TouchableOpacity>
               <Text style={styles.storyName}>Your story</Text>
             </View>
-            {STORIES.map(story => (
+            {isLoading ? null : stories.map(story => (
               <View key={story.id} style={styles.storyItem}>
                 <View style={styles.storyAvatarWrap}>
-                  <Image source={story.avatar} style={styles.storyAvatar} />
+                  <Image source={renderImage(story.avatar)} style={styles.storyAvatar} />
                   {story.isOnline && <View style={styles.onlineDot} />}
                 </View>
                 <Text style={styles.storyName}>{story.name}</Text>
@@ -429,9 +178,9 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <TouchableOpacity><Text style={styles.viewAllText}>See all</Text></TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            {TRENDING_JOURNEYS.map(journey => (
+            {isLoading ? null : trendingJourneys.map(journey => (
               <View key={journey.id} style={styles.journeyCard}>
-                <Image source={journey.image} style={styles.journeyImage} />
+                <Image source={renderImage(journey.image)} style={styles.journeyImage} />
                 <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)', '#000']} style={styles.journeyGradient} />
                 
                 <View style={styles.journeyTopBadges}>
@@ -445,7 +194,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
                 <View style={styles.journeyContent}>
                   <View style={styles.journeyAuthorRow}>
-                    <Image source={journey.authorAvatar} style={styles.journeyAuthorAvatar} />
+                    <Image source={renderImage(journey.authorAvatar)} style={styles.journeyAuthorAvatar} />
                     <View style={styles.journeyAuthorInfo}>
                       <Text style={styles.journeyTitle}>{journey.title}</Text>
                       <Text style={styles.journeyMeta}>By {journey.author} • {journey.duration} • {journey.location}</Text>
@@ -479,9 +228,9 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <TouchableOpacity><Text style={styles.viewAllText}>See all</Text></TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-            {POPULAR_CIRCLES.map(circle => (
+            {isLoading ? null : popularCircles.map(circle => (
               <View key={circle.id} style={styles.circleCard}>
-                <Image source={circle.image} style={styles.circleImage} />
+                <Image source={renderImage(circle.image)} style={styles.circleImage} />
                 <View style={styles.circleIconWrap}>
                   <Icon name="account-group" size={16} color={colors.accent} />
                 </View>
@@ -513,9 +262,9 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             </View>
 
             <View style={styles.eventsList}>
-              {UPCOMING_EVENTS.map(event => (
+              {isLoading ? null : upcomingEvents.map(event => (
                 <View key={event.id} style={styles.eventCard}>
-                  <Image source={event.image} style={styles.eventImage} />
+                  <Image source={renderImage(event.image)} style={styles.eventImage} />
                   
                   <View style={styles.eventDateOverlay}>
                     <Text style={styles.eventMonth}>{event.month}</Text>
@@ -577,9 +326,9 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>My Circles</Text>
               <View style={{ height: normalize(14) }} />
-              {MY_CIRCLES_DATA.map(circle => (
+              {isLoading ? null : myCircles.map(circle => (
                 <View key={circle.id} style={styles.myCircleCard}>
-                  <Image source={circle.image} style={styles.myCircleImage} />
+                  <Image source={renderImage(circle.image)} style={styles.myCircleImage} />
                   <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)', '#000']} style={styles.myCircleGradient} />
                   
                   <View style={styles.myCircleTopIcon}>
@@ -611,10 +360,10 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                 <TouchableOpacity><Text style={styles.viewAllText}>All Circles {'>'}</Text></TouchableOpacity>
               </View>
               <View style={styles.discoverList}>
-                {DISCOVER_CIRCLES_DATA.map(circle => (
+                {isLoading ? null : discoverCircles.map(circle => (
                   <View key={circle.id} style={styles.discoverCard}>
                     <View style={styles.discoverImageContainer}>
-                      <Image source={circle.image} style={styles.discoverImage} />
+                      <Image source={renderImage(circle.image)} style={styles.discoverImage} />
                       <View style={styles.discoverImageOverlay}>
                         <View style={styles.discoverIconWrap}>
                           <Icon name="account-group" size={16} color={colors.accent} />
@@ -656,10 +405,10 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                 <TouchableOpacity><Text style={styles.viewAllText}>View all</Text></TouchableOpacity>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {FEATURED_JOURNEYS.map((journey) => (
+                {isLoading ? null : featuredJourneys.map((journey) => (
                   <View key={journey.id} style={styles.featuredCard}>
                     <View style={styles.featuredImageContainer}>
-                      <Image source={journey.image} style={styles.featuredImage} />
+                      <Image source={renderImage(journey.image)} style={styles.featuredImage} />
                       
                       <View style={[styles.featuredBadge, (styles as any)[`badge_${journey.badgeType}`]]}>
                         {journey.badgeType === 'editor' && <Icon name="star" size={10} color="#B6FF42" />}
@@ -677,7 +426,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
                     <View style={styles.featuredContent}>
                       <View style={styles.featuredAuthorRow}>
-                        <Image source={journey.authorAvatar} style={styles.featuredAuthorAvatar} />
+                        <Image source={renderImage(journey.authorAvatar)} style={styles.featuredAuthorAvatar} />
                         <Text style={styles.featuredAuthorName} numberOfLines={1}>{journey.author}</Text>
                         <Icon name="dots-vertical" size={14} color={colors.muted} style={styles.featuredMoreIcon} />
                       </View>
@@ -737,10 +486,10 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
             {/* Journeys List Section */}
             <View style={styles.journeysList}>
-              {JOURNEYS_LIST_DATA.map((journey) => (
+              {isLoading ? null : journeysList.map((journey) => (
                 <View key={journey.id} style={styles.journeyListItem}>
                   <View style={styles.journeyListImageContainer}>
-                    <Image source={journey.image} style={styles.journeyListImage} />
+                    <Image source={renderImage(journey.image)} style={styles.journeyListImage} />
                     <View style={styles.journeyListImageCount}>
                       <Icon name="image-multiple" size={10} color={colors.text} />
                       <Text style={styles.journeyListImageCountText}>{journey.imageCount}</Text>
@@ -750,7 +499,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                   <View style={styles.journeyListContent}>
                     <View style={styles.journeyListHeaderRow}>
                       <View style={styles.journeyListAuthorRow}>
-                        <Image source={journey.authorAvatar} style={styles.journeyListAuthorAvatar} />
+                        <Image source={renderImage(journey.authorAvatar)} style={styles.journeyListAuthorAvatar} />
                         <Text style={styles.journeyListAuthorName} numberOfLines={1}>{journey.author}</Text>
                         {journey.isVerified && <Icon name="check-decagram" size={12} color={colors.accent} style={{ marginLeft: normalize(4) }} />}
                       </View>
@@ -764,7 +513,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                         <Text style={styles.journeyListDesc} numberOfLines={2}>{journey.description}</Text>
                         
                         <View style={styles.journeyListTags}>
-                          {journey.tags.map((tag, index) => (
+                          {journey.tags?.map((tag: any, index: number) => (
                             <View key={index} style={[styles.journeyListTag, (styles as any)[`tag_${tag.type}_bg`]]}>
                               <Text style={[styles.journeyListTagText, (styles as any)[`tag_${tag.type}_text`]]}>{tag.text}</Text>
                             </View>

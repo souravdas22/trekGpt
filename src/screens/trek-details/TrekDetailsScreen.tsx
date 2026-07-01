@@ -10,18 +10,20 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-  ImageBackground,
   Platform,
   Animated,
   Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
+
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { trekService } from '../../services/firebase/trek.service';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
+import { TrekGalleryPreview } from './components/TrekGalleryPreview';
+import { TrekGalleryViewer, GalleryImage } from './components/TrekGalleryViewer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.48;
@@ -42,6 +44,11 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
   const scrollY = useRef(new Animated.Value(0)).current;
   const dispatch = useDispatch();
+  const [galleryOpen, setGalleryOpen] = useState(false);
+
+  const openGallery = () => {
+    setGalleryOpen(true);
+  };
 
   const passedTrek = route?.params?.trek || {};
   
@@ -66,8 +73,13 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
     distance: passedTrek.distanceKm ? `${passedTrek.distanceKm} km` : (passedTrek.distance || '-'),
     difficulty: passedTrek.difficulty || 'Moderate',
     maxAltitude: passedTrek.maxAltitudeFt ? `${passedTrek.maxAltitudeFt} ft` : '-',
-    image: passedTrek.imageUrl ? { uri: passedTrek.imageUrl } : (passedTrek.image || { uri: 'https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80' }),
-    photoCount: 1,
+    imageUrls: (() => {
+      const thumb = passedTrek.imageUrl ? [passedTrek.imageUrl] : [];
+      const rest = (passedTrek.imageUrls || []).filter((u: string) => u !== passedTrek.imageUrl);
+      const merged = [...thumb, ...rest];
+      return merged.length > 0 ? merged : ['https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80'];
+    })(),
+    photoCount: passedTrek.photoCount || (passedTrek.imageUrls ? passedTrek.imageUrls.length + 1 : 1),
     price: passedTrek.estimatedCost || passedTrek.price || '-',
     description: passedTrek.description || 'No description available for this trek.',
     highlights: passedTrek.highlights || [],
@@ -82,6 +94,14 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
       logoUrl: undefined
     }
   };
+
+  // Build GalleryImage[] from flat URL array
+  const galleryImages: GalleryImage[] = trek.imageUrls.map((url, i) => ({
+    id: `${trek.id}-img-${i}`,
+    imageUrl: url,
+    isOfficial: true,
+    category: 'Landscape',
+  }));
 
   const isSaved = useSelector((state: RootState) => state.savedTreks.savedTreks.some(t => t.id === trek.id));
 
@@ -127,49 +147,16 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
         })}
         scrollEventThrottle={16}
       >
-        {/* ── Hero Image ── */}
-        <View style={styles.heroContainer}>
-          <ImageBackground
-            source={trek.image}
-            style={styles.hero}
-            resizeMode="cover"
-          >
-            {/* Gradient overlay */}
-            <LinearGradient
-              colors={[
-                'rgba(0,0,0,0)',
-                'rgba(0,0,0,0.08)',
-                'rgba(0,0,0,0.6)',
-              ]}
-              locations={[0, 0.5, 1]}
-              style={StyleSheet.absoluteFill}
-            />
-
-            {/* Top buttons */}
-            <View style={styles.heroTopRow}>
-              <TouchableOpacity
-                style={styles.heroBtn}
-                onPress={() => navigation?.goBack()}
-                activeOpacity={0.8}
-              >
-                <Icon name="chevron-left" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.heroBtn} 
-                activeOpacity={0.8}
-                onPress={handleToggleSave}
-              >
-                <Icon name={isSaved ? "bookmark" : "bookmark-outline"} size={20} color={isSaved ? colors.accent : "#FFFFFF"} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Photo Count */}
-            <View style={styles.photoCountContainer}>
-               <Icon name="image-multiple-outline" size={14} color="#FFF" />
-               <Text style={styles.photoCountText}>{trek.photoCount} Photos</Text>
-            </View>
-          </ImageBackground>
-        </View>
+        {/* ── Gallery Preview (hero + thumbnails) ── */}
+        <TrekGalleryPreview
+          images={galleryImages}
+          photoCount={trek.photoCount}
+          isSaved={isSaved}
+          onBack={() => navigation?.goBack()}
+          onSave={handleToggleSave}
+          onOpenGallery={openGallery}
+          accentColor={colors.accent}
+        />
 
         {/* ── Content Sheet ── */}
         <View style={styles.sheet}>
@@ -432,6 +419,13 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
           <Icon name="arrow-right" size={20} color="#0D1117" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
+      {/* ── Full Screen Gallery Viewer ── */}
+      <TrekGalleryViewer
+        images={galleryImages}
+        isVisible={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        trekName={trek.name}
+      />
     </View>
   );
 };
@@ -612,7 +606,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   // Tabs
   tabsRow: {
     flexDirection: 'row',
-    marginBottom: normalize(24),
+    marginBottom: normalize(32),
     borderWidth: 1,
     borderColor: colors.outline,
     borderRadius: normalize(14),
@@ -646,13 +640,13 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     fontSize: normalizeFont(18),
     fontWeight: '700',
     color: colors.text,
-    marginBottom: normalize(12),
+    marginBottom: normalize(16),
   },
   description: {
     fontSize: normalizeFont(14),
     color: colors.muted,
     lineHeight: normalizeFont(22),
-    marginBottom: normalize(8),
+    marginBottom: normalize(16),
   },
   readMoreBtn: {
     flexDirection: 'row',
@@ -992,6 +986,11 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.outline,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 20,
   },
   priceContainer: {
     justifyContent: 'center',
@@ -1015,6 +1014,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   ctaBtnText: {
     color: '#0D1117',
     fontSize: normalizeFont(14),

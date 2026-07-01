@@ -18,6 +18,8 @@ import { ColorsType } from '@theme/colors';
 import { useDispatch } from 'react-redux';
 import { logout } from '@store/slices/authSlice';
 import { normalize, normalizeFont } from '@theme/normalize';
+import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
+import { COLLECTIONS } from '../../services/firebase/collections';
 
 interface MenuItem {
   id: string;
@@ -36,13 +38,7 @@ const MENU_ITEMS: MenuItem[] = [
   { id: '6', icon: 'help-circle-outline', label: 'Help & Support', subtitle: 'FAQs, Contact us', screen: 'Support' },
 ];
 
-const RECENT_ACHIEVEMENTS = [
-  { id: '1', icon: 'terrain', label: 'Summit Seeker', sub: '10 Treks', color: '#4ADE80' },
-  { id: '2', icon: 'shoe-print', label: 'Trail Master', sub: '100 km', color: '#38BDF8' },
-  { id: '3', icon: 'camera-outline', label: 'Photo Explorer', sub: '50 Photos', color: '#D946EF' },
-  { id: '4', icon: 'tent', label: 'Night Camper', sub: '5 Camps', color: '#F59E0B' },
-  { id: '5', icon: 'leaf', label: 'Leave No Trace', sub: 'Eco Warrior', color: '#22C55E' },
-];
+
 
 interface ProfileScreenProps {
   navigation?: any;
@@ -53,6 +49,24 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const dispatch = useDispatch();
+  const [achievements, setAchievements] = React.useState<any[]>([]);
+  const [isLoadingAchievements, setIsLoadingAchievements] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const db = getFirestore();
+        const snapshot = await getDocs(collection(db, COLLECTIONS.ACHIEVEMENTS));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setAchievements(data);
+      } catch (e) {
+        console.error('Error fetching achievements', e);
+      } finally {
+        setIsLoadingAchievements(false);
+      }
+    };
+    fetchAchievements();
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -161,7 +175,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
           </View>
 
           <View style={styles.achievementsRow}>
-            {RECENT_ACHIEVEMENTS.map((item) => (
+            {isLoadingAchievements ? null : achievements.map((item) => (
               <View key={item.id} style={styles.achievementCard}>
                 <View style={[styles.hexagonOutline, { borderColor: item.color }]}>
                   <Icon name={item.icon} size={22} color={item.color} />

@@ -3,7 +3,7 @@
  * @format
  */
 import 'react-native-gesture-handler'; // Must be at the top
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -17,6 +17,7 @@ import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { store, persistor } from '@store/index';
 import { RootNavigator } from '@navigation/index';
 import { colors } from '@theme/colors';
+import { seedStaticDataToFirestore } from './src/seedData';
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,10 @@ const toastConfig = {
 };
 
 function App(): React.JSX.Element {
+  useEffect(() => {
+    seedStaticDataToFirestore().catch(console.error);
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>

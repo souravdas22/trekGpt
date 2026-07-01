@@ -164,6 +164,42 @@ class CommunityService {
   public async getComments(postId: string, pageSize: number = 20, lastVisibleDoc?: FirebaseFirestoreTypes.DocumentData | null) {
     return await this.commentRepo.getPaginatedComments(postId, pageSize, lastVisibleDoc);
   }
+
+  // --- Methods for other community sections ---
+
+  public async getStories() {
+    const firestore = getFirestore();
+    const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.STORIES));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  public async getJourneys() {
+    const firestore = getFirestore();
+    const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.JOURNEYS));
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return {
+      trending: all.filter((j: any) => j.group === 'trending'),
+      featured: all.filter((j: any) => j.group === 'featured'),
+      list: all.filter((j: any) => j.group === 'list'),
+    };
+  }
+
+  public async getCircles() {
+    const firestore = getFirestore();
+    const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.CIRCLES));
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return {
+      popular: all.filter((c: any) => c.group === 'popular'),
+      my: all.filter((c: any) => c.group === 'my'),
+      discover: all.filter((c: any) => c.group === 'discover'),
+    };
+  }
+
+  public async getEvents() {
+    const firestore = getFirestore();
+    const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.EVENTS));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
 }
 
 export const communityService = new CommunityService();

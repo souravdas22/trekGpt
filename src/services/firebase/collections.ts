@@ -10,6 +10,10 @@ export const COLLECTIONS = {
   TREKS: 'treks',
   CATEGORIES: 'categories',
   THEMES: 'themes',
+  STORIES: 'stories',
+  JOURNEYS: 'journeys',
+  CIRCLES: 'circles',
+  EVENTS: 'events',
 } as const;
 
 export type CollectionName = typeof COLLECTIONS[keyof typeof COLLECTIONS];

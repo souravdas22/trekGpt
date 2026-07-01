@@ -19,21 +19,10 @@ import { ColorsType } from '@theme/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import { normalize, normalizeFont } from '@theme/normalize';
 import Svg, { Circle } from 'react-native-svg';
+import { trekService, TrekDocument } from '../../services/firebase/trek.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const AI_PICKS = [
-  { id: '1', name: 'Kedarkantha', location: 'Uttarakhand', rating: '4.6', price: '₹6,500', image: require('../../assets/images/trek-images/Kedarkantha.jpg') },
-  { id: '2', name: 'Har Ki Dun', location: 'Uttarakhand', rating: '4.8', price: '₹9,800', image: require('../../assets/images/trek-images/Har Ki Dun.jpg') },
-  { id: '3', name: 'Dayara Bugyal', location: 'Uttarakhand', rating: '4.5', price: '₹6,500', image: require('../../assets/images/trek-images/Dayara Bugyal.jpeg') },
-  { id: '4', name: 'Sandakphu', location: 'West Bengal', rating: '4.7', price: '₹7,900', image: require('../../assets/images/trek-images/Sandakphu Phalut.jpg') },
-];
-
-const TRENDING = [
-  { id: 't1', name: 'Sandakphu', trend: '28%', icon: 'leaf', color: '#4ADE80' },
-  { id: 't2', name: 'Kedarkantha', trend: '21%', icon: 'fire', color: '#F97316' },
-  { id: 't3', name: 'Valley of\nFlowers', trend: '17%', icon: 'leaf', color: '#4ADE80' },
-];
 
 type CircularProgressProps = {
   progress: number;
@@ -85,6 +74,42 @@ export const HomeScreen = () => {
   const styles = getStyles(colors);
   const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
+  const [aiPicks, setAiPicks] = useState<any[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchHomeData = async () => {
+      try {
+        const dbTreks = await trekService.getAllTreks(true);
+        
+        const picks = dbTreks.filter(t => t.isFeatured).slice(0, 4).map((t, i) => ({
+          id: t.id,
+          name: t.name || 'Unknown',
+          location: t.location || 'Unknown',
+          rating: '4.5',
+          price: t.estimatedCost ? `₹${t.estimatedCost}` : 'Contact',
+          image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/trek-images/Dayara Bugyal.jpeg'),
+        }));
+        
+        const trendingList = dbTreks.filter(t => t.isPopular).slice(0, 3).map((t, i) => ({
+          id: t.id,
+          name: t.name?.split(' ')[0] || 'Unknown',
+          trend: `${Math.floor(Math.random() * 20 + 10)}%`,
+          icon: i % 2 === 0 ? 'leaf' : 'fire',
+          color: i % 2 === 0 ? '#4ADE80' : '#F97316',
+        }));
+
+        setAiPicks(picks);
+        setTrending(trendingList);
+      } catch (error) {
+        console.error('Error fetching home data', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchHomeData();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -184,7 +209,7 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aiPicksScroll}>
-            {AI_PICKS.map((item) => (
+            {isLoading ? null : aiPicks.map((item) => (
               <TouchableOpacity key={item.id} style={styles.aiPickCard} activeOpacity={0.9}>
                 <ImageBackground source={item.image} style={styles.aiPickImage} imageStyle={styles.aiPickImageStyle}>
                   <LinearGradient
@@ -220,7 +245,7 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
-            {TRENDING.map((item) => (
+            {isLoading ? null : trending.map((item) => (
               <View key={item.id} style={styles.trendingCard}>
                 <Icon name={item.icon} size={28} color={item.color} />
                 <View style={styles.trendingTextCol}>

@@ -18,26 +18,7 @@ import { normalize, normalizeFont } from '@theme/normalize';
 
 const { width: W, height: H } = Dimensions.get('window');
 
-// ── Real coordinates for a Trek Route (approx. Aiguille du Midi trail) ──
-const ROUTE_COORDS = [
-  { latitude: 45.9237, longitude: 6.8694 }, // Chamonix Start
-  { latitude: 45.9180, longitude: 6.8720 },
-  { latitude: 45.9120, longitude: 6.8760 },
-  { latitude: 45.9050, longitude: 6.8820 }, // Checkpoint
-  { latitude: 45.8980, longitude: 6.8840 },
-  { latitude: 45.8900, longitude: 6.8850 },
-  { latitude: 45.8820, longitude: 6.8860 },
-  { latitude: 45.8790, longitude: 6.8870 }, // Aiguille du Midi
-];
 
-// ── Trekkers on route (mapping to route indices) ──
-const TREKKERS = [
-  { id: 'you', coordIdx: 7, isUser: true },
-  { id: 't1', coordIdx: 1, bg: '#F97316' },
-  { id: 't2', coordIdx: 3, bg: '#38BDF8' },
-  { id: 't3', coordIdx: 5, bg: '#EF4444' },
-  { id: 't4', coordIdx: 6, bg: '#A855F7' },
-];
 
 interface MapRouteScreenProps {
   navigation?: any;
@@ -64,9 +45,10 @@ const mapStyle = [
   { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] }
 ];
 
-export const MapRouteScreen = ({ navigation }: MapRouteScreenProps) => {
+export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
+  const { trekRoute = [], trekkers = [] } = route?.params || {};
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -104,15 +86,16 @@ export const MapRouteScreen = ({ navigation }: MapRouteScreenProps) => {
         />
         {/* Dotted Route Line */}
         <Polyline
-          coordinates={ROUTE_COORDS}
+          coordinates={trekRoute}
           strokeColor="#EAB308"
           strokeWidth={4}
           lineDashPattern={[6, 8]}
         />
 
         {/* ── Trekker Avatar Pins ── */}
-        {TREKKERS.map(trekker => {
-          const coord = ROUTE_COORDS[trekker.coordIdx];
+        {trekkers.map((trekker: any) => {
+          const coord = trekRoute[trekker.coordIdx];
+          if (!coord) return null;
           
           if (trekker.isUser) {
             return (
