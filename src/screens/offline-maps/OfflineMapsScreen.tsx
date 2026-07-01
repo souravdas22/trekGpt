@@ -34,7 +34,7 @@ const MAP_REGIONS: MapRegion[] = [
     downloaded: false,
     downloading: false,
     progress: 0,
-    image: require('@assets/images/trek-images/Chadar Trek.jpg'),
+    image: require('@assets/images/fallback_trek.jpg'),
   },
   {
     id: '2',
@@ -43,7 +43,7 @@ const MAP_REGIONS: MapRegion[] = [
     downloaded: false,
     downloading: false,
     progress: 0,
-    image: require('@assets/images/trek-images/Hampta Pass.jpg'),
+    image: require('@assets/images/fallback_trek.jpg'),
   },
   {
     id: '3',
@@ -52,7 +52,7 @@ const MAP_REGIONS: MapRegion[] = [
     downloaded: false,
     downloading: false,
     progress: 0,
-    image: require('@assets/images/trek-images/Kashmir Great Lakes.jpg'),
+    image: require('@assets/images/fallback_trek.jpg'),
   },
   {
     id: '4',
@@ -61,7 +61,7 @@ const MAP_REGIONS: MapRegion[] = [
     downloaded: false,
     downloading: false,
     progress: 0,
-    image: require('@assets/images/trek-images/Valley of Flowers.jpg'),
+    image: require('@assets/images/fallback_trek.jpg'),
   },
 ];
 

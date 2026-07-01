@@ -286,7 +286,7 @@ export const ExploreScreen = () => {
         {themes.map((theme) => (
           <TouchableOpacity key={theme.id} style={styles.themeCard} activeOpacity={0.9}>
             <ImageBackground 
-              source={theme.imageUrl ? { uri: theme.imageUrl } : require('../../assets/images/trek-images/Dayara Bugyal.jpeg')} 
+              source={theme.imageUrl ? { uri: theme.imageUrl } : require('../../assets/images/fallback_trek.jpg')} 
               style={styles.themeImage} 
               imageStyle={styles.themeImageStyle}
             >

@@ -89,7 +89,7 @@ export const HomeScreen = () => {
           location: t.location || 'Unknown',
           rating: '4.5',
           price: t.estimatedCost ? `₹${t.estimatedCost}` : 'Contact',
-          image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/trek-images/Dayara Bugyal.jpeg'),
+          image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/fallback_trek.jpg'),
         }));
         
         const trendingList = dbTreks.filter(t => t.isPopular).slice(0, 3).map((t, i) => ({
@@ -157,7 +157,7 @@ export const HomeScreen = () => {
         <View style={styles.featuredContainer}>
           <TouchableOpacity activeOpacity={0.95} onPress={() => {}}>
             <ImageBackground
-              source={require('../../assets/images/trek-images/Roopkund Trek.jpg')}
+              source={require('../../assets/images/fallback_trek.jpg')}
               style={styles.featuredImage}
               imageStyle={styles.featuredImageStyle}
             >

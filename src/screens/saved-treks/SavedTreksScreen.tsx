@@ -64,7 +64,7 @@ export const SavedTreksScreen = () => {
               onPress={() => navigation.navigate('TrekDetails', { trek: item })}
             >
               <ImageBackground
-                source={item.image || require('../../assets/images/trek-images/Kedarkantha.jpg')}
+                source={item.image || require('../../assets/images/fallback_trek.jpg')}
                 style={styles.cardBg}
                 imageStyle={{ borderRadius: 16 }}
               >
