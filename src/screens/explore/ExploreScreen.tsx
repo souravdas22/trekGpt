@@ -14,6 +14,7 @@ import {
   ImageBackground,
   Modal,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -81,6 +82,7 @@ export const ExploreScreen = () => {
   const [categories, setCategories] = useState<string[]>(['All']);
   const [themes, setThemes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Filter states
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -88,15 +90,14 @@ export const ExploreScreen = () => {
   const [filterDuration, setFilterDuration] = useState<string[]>([]);
   const [filterPrice, setFilterPrice] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchExploreData = async () => {
-      try {
-        const [dbTreks, dbCategories, dbThemes] = await Promise.all([
-          trekService.getAllTreks(true),
-          trekService.getCategories(),
-          trekService.getThemes()
-        ]);
-      
+  const fetchExploreData = React.useCallback(async () => {
+    try {
+      const [dbTreks, dbCategories, dbThemes] = await Promise.all([
+        trekService.getAllTreks(true),
+        trekService.getCategories(),
+        trekService.getThemes()
+      ]);
+    
       const mapTrek = (t: TrekDocument, index: number, type: 'featured' | 'popular'): Trek => {
         const badgeColors = [colors.accent, '#60A5FA', '#A3E635', '#F59E0B'];
         return {
@@ -130,24 +131,31 @@ export const ExploreScreen = () => {
         setCategories(['All', 'Mountain', 'Forest', 'Winter', 'Lakes']); // Fallback
       }
       
-        if (dbThemes.length > 0) {
-          setThemes(dbThemes.filter(t => t.isActive !== false));
-        } else {
-          // Fallback themes if DB is empty
-          setThemes([
-            { id: 't1', title: 'Weekend Treks', subtitle: 'Short & Sweet', icon: 'tent', imageUrl: '' },
-            { id: 't2', title: 'Budget Treks', subtitle: 'Under ₹10,000', icon: 'wallet-outline', imageUrl: '' }
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching explore data:', error);
-      } finally {
-        setIsLoading(false);
+      if (dbThemes.length > 0) {
+        setThemes(dbThemes.filter(t => t.isActive !== false));
+      } else {
+        // Fallback themes if DB is empty
+        setThemes([
+          { id: 't1', title: 'Weekend Treks', subtitle: 'Short & Sweet', icon: 'tent', imageUrl: '' },
+          { id: 't2', title: 'Budget Treks', subtitle: 'Under ₹10,000', icon: 'wallet-outline', imageUrl: '' }
+        ]);
       }
-    };
-    
-    fetchExploreData();
+    } catch (error) {
+      console.error('Error fetching explore data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [colors.accent]);
+
+  useEffect(() => {
+    fetchExploreData();
+  }, [fetchExploreData]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchExploreData();
+    setRefreshing(false);
+  }, [fetchExploreData]);
 
   const renderFeatured = () => (
     <View style={styles.sectionContainer}>
@@ -312,7 +320,13 @@ export const ExploreScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
         {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>

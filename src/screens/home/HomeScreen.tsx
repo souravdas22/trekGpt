@@ -11,6 +11,8 @@ import {
   ImageBackground,
   Platform,
   Image,
+  RefreshControl,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -69,6 +71,25 @@ const CircularProgress = ({ progress, size = 46, strokeWidth = 3, color }: Circu
   );
 };
 
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.5)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
+
 export const HomeScreen = () => {
   const colors = useAppTheme();
   const styles = getStyles(colors);
@@ -76,46 +97,79 @@ export const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [aiPicks, setAiPicks] = useState<any[]>([]);
   const [trending, setTrending] = useState<any[]>([]);
+  const [upcomingTreks, setUpcomingTreks] = useState<any[]>([]);
+  const [activeUpcomingIndex, setActiveUpcomingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onUpcomingScroll = (e: any) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const itemWidth = SCREEN_WIDTH - normalize(40);
+    const index = Math.round(x / itemWidth);
+    if (index !== activeUpcomingIndex) setActiveUpcomingIndex(index);
+  };
+
+  const fetchHomeData = React.useCallback(async () => {
+    try {
+      const dbTreks = await trekService.getAllTreks(true);
+      
+      const picks = dbTreks.filter(t => t.isFeatured).slice(0, 4).map((t, i) => ({
+        id: t.id,
+        name: t.name || 'Unknown',
+        location: t.location || 'Unknown',
+        rating: '4.5',
+        price: t.estimatedCost ? `₹${t.estimatedCost}` : 'Contact',
+        image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/fallback_trek.jpg'),
+      }));
+      
+      const trendingList = dbTreks.filter(t => t.isPopular).slice(0, 3).map((t, i) => ({
+        id: t.id,
+        name: t.name?.split(' ')[0] || 'Unknown',
+        trend: `${Math.floor(Math.random() * 20 + 10)}%`,
+        icon: i % 2 === 0 ? 'leaf' : 'fire',
+        color: i % 2 === 0 ? '#4ADE80' : '#F97316',
+      }));
+
+      const upcomingList = dbTreks.filter(t => t.isUpcoming).slice(0, 5).map(t => ({
+        id: t.id,
+        name: t.name || 'Unknown',
+        location: t.location || 'Unknown',
+        daysLeft: Math.floor(Math.random() * 14) + 2,
+        progress: Math.floor(Math.random() * 40) + 40,
+        image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/fallback_trek.jpg'),
+      }));
+
+      setAiPicks(picks);
+      setTrending(trendingList);
+      setUpcomingTreks(upcomingList.length > 0 ? upcomingList : picks.map(p => ({ ...p, daysLeft: Math.floor(Math.random() * 14) + 2, progress: Math.floor(Math.random() * 40) + 40 })));
+    } catch (error) {
+      console.error('Error fetching home data', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   React.useEffect(() => {
-    const fetchHomeData = async () => {
-      try {
-        const dbTreks = await trekService.getAllTreks(true);
-        
-        const picks = dbTreks.filter(t => t.isFeatured).slice(0, 4).map((t, i) => ({
-          id: t.id,
-          name: t.name || 'Unknown',
-          location: t.location || 'Unknown',
-          rating: '4.5',
-          price: t.estimatedCost ? `₹${t.estimatedCost}` : 'Contact',
-          image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/fallback_trek.jpg'),
-        }));
-        
-        const trendingList = dbTreks.filter(t => t.isPopular).slice(0, 3).map((t, i) => ({
-          id: t.id,
-          name: t.name?.split(' ')[0] || 'Unknown',
-          trend: `${Math.floor(Math.random() * 20 + 10)}%`,
-          icon: i % 2 === 0 ? 'leaf' : 'fire',
-          color: i % 2 === 0 ? '#4ADE80' : '#F97316',
-        }));
-
-        setAiPicks(picks);
-        setTrending(trendingList);
-      } catch (error) {
-        console.error('Error fetching home data', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchHomeData();
-  }, []);
+  }, [fetchHomeData]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchHomeData();
+    setRefreshing(false);
+  }, [fetchHomeData]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+        }
+      >
         
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -153,50 +207,76 @@ export const HomeScreen = () => {
           </View>
         </View>
 
-        {/* ── Featured Trek ── */}
+        {/* ── Upcoming Treks Carousel ── */}
         <View style={styles.featuredContainer}>
-          <TouchableOpacity activeOpacity={0.95} onPress={() => {}}>
-            <ImageBackground
-              source={require('../../assets/images/fallback_trek.jpg')}
-              style={styles.featuredImage}
-              imageStyle={styles.featuredImageStyle}
-            >
-              <LinearGradient
-                colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)']}
-                locations={[0, 0.4, 1]}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.featuredContent}>
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>Upcoming Trek</Text>
-                </View>
-                
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={onUpcomingScroll}
+            scrollEventThrottle={16}
+          >
+            {isLoading ? (
+              <View style={[styles.featuredImage, { width: SCREEN_WIDTH - normalize(40), backgroundColor: colors.surface, borderRadius: normalize(16), justifyContent: 'flex-end', padding: normalize(16) }]}>
+                <SkeletonItem style={{ width: normalize(100), height: normalize(26), backgroundColor: colors.outline, borderRadius: normalize(6), marginBottom: normalize(35) }} />
                 <View style={styles.featuredBottomRow}>
                   <View style={styles.featuredBottomLeft}>
-                    <Text style={styles.featuredTitle}>Roopkund Trek</Text>
-                    <View style={styles.locationRow}>
-                      <Icon name="map-marker-outline" size={14} color={colors.muted} />
-                      <Text style={styles.locationText}>Uttarakhand, India</Text>
-                    </View>
-                    <View style={styles.countdownContainer}>
-                      <Text style={styles.countdownDays}>8 Days Left</Text>
-                      <Text style={styles.countdownSub}>to your adventure</Text>
-                    </View>
+                    <SkeletonItem style={{ width: '70%', height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(8) }} />
+                    <SkeletonItem style={{ width: '50%', height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(8) }} />
                   </View>
-                  
-                  <View style={styles.featuredBottomRight}>
-                    <CircularProgress progress={72} size={54} strokeWidth={4} />
-                  </View>
+                  <SkeletonItem style={{ width: normalize(54), height: normalize(54), borderRadius: normalize(27), backgroundColor: colors.outline, marginBottom: normalize(4) }} />
                 </View>
               </View>
-            </ImageBackground>
-          </TouchableOpacity>
+            ) : upcomingTreks.map((item) => (
+              <TouchableOpacity key={item.id} activeOpacity={0.95} onPress={() => navigation.navigate('TrekDetails', { trekId: item.id })}>
+                <ImageBackground
+                  source={item.image}
+                  style={[styles.featuredImage, { width: SCREEN_WIDTH - normalize(40) }]}
+                  imageStyle={styles.featuredImageStyle}
+                >
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)']}
+                    locations={[0, 0.4, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.featuredContent}>
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>Upcoming Trek</Text>
+                    </View>
+                    
+                    <View style={styles.featuredBottomRow}>
+                      <View style={styles.featuredBottomLeft}>
+                        <Text style={styles.featuredTitle} numberOfLines={1}>{item.name}</Text>
+                        <View style={styles.locationRow}>
+                          <Icon name="map-marker-outline" size={14} color={colors.muted} />
+                          <Text style={styles.locationText} numberOfLines={1}>{item.location}</Text>
+                        </View>
+                        <View style={styles.countdownContainer}>
+                          <Text style={styles.countdownDays}>{item.daysLeft} Days Left</Text>
+                          <Text style={styles.countdownSub}>to your adventure</Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.featuredBottomRight}>
+                        <CircularProgress progress={item.progress} size={54} strokeWidth={4} />
+                      </View>
+                    </View>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          
           <View style={styles.paginationDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
+            {upcomingTreks.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  activeUpcomingIndex === index && styles.dotActive
+                ]}
+              />
+            ))}
           </View>
         </View>
 
@@ -209,8 +289,19 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aiPicksScroll}>
-            {isLoading ? null : aiPicks.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.aiPickCard} activeOpacity={0.9}>
+            {isLoading ? (
+              [1, 2, 3].map(key => (
+                <View key={key} style={[styles.aiPickCard, { backgroundColor: colors.surface, padding: normalize(12), justifyContent: 'flex-end', borderWidth: 1, borderColor: colors.outline }]}>
+                  <SkeletonItem style={{ width: '90%', height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(8) }} />
+                  <SkeletonItem style={{ width: '60%', height: normalize(12), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(12) }} />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <SkeletonItem style={{ width: '30%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                    <SkeletonItem style={{ width: '40%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                  </View>
+                </View>
+              ))
+            ) : aiPicks.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.aiPickCard} activeOpacity={0.9} onPress={() => navigation.navigate('TrekDetails', { trekId: item.id })}>
                 <ImageBackground source={item.image} style={styles.aiPickImage} imageStyle={styles.aiPickImageStyle}>
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -245,14 +336,24 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingScroll}>
-            {isLoading ? null : trending.map((item) => (
-              <View key={item.id} style={styles.trendingCard}>
+            {isLoading ? (
+              [1, 2, 3].map(key => (
+                <View key={key} style={styles.trendingCard}>
+                  <SkeletonItem style={{ width: normalize(28), height: normalize(28), borderRadius: normalize(14), backgroundColor: colors.surface, opacity: 0.5 }} />
+                  <View style={styles.trendingTextCol}>
+                    <SkeletonItem style={{ width: normalize(80), height: normalize(14), backgroundColor: colors.surface, borderRadius: normalize(4), marginBottom: normalize(6), opacity: 0.5 }} />
+                    <SkeletonItem style={{ width: normalize(50), height: normalize(12), backgroundColor: colors.surface, borderRadius: normalize(4), opacity: 0.5 }} />
+                  </View>
+                </View>
+              ))
+            ) : trending.map((item) => (
+              <TouchableOpacity key={item.id} style={styles.trendingCard} activeOpacity={0.9} onPress={() => navigation.navigate('TrekDetails', { trekId: item.id })}>
                 <Icon name={item.icon} size={28} color={item.color} />
                 <View style={styles.trendingTextCol}>
                   <Text style={styles.trendingName}>{item.name}</Text>
                   <Text style={styles.trendingTrend}>↑ {item.trend}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>

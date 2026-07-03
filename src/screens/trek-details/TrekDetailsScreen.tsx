@@ -37,6 +37,25 @@ interface TrekDetailsScreenProps {
   route?: any;
 }
 
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.5)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
+
 export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -50,44 +69,62 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
     setGalleryOpen(true);
   };
 
-  const passedTrek = route?.params?.trek || {};
-  
+  const passedTrek = route?.params?.trek;
+  const passedTrekId = route?.params?.trekId;
+  const trekId = passedTrekId || passedTrek?.id;
+
+  const [isLoading, setIsLoading] = useState(!passedTrek && !!passedTrekId);
+  const [fetchedTrek, setFetchedTrek] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
 
   React.useEffect(() => {
-    if (passedTrek.id) {
-       trekService.getTrekReviews(passedTrek.id).then(dbReviews => {
-          setReviews(dbReviews);
-       });
-    }
-  }, [passedTrek.id]);
+    const loadData = async () => {
+      if (!trekId) return;
+      try {
+        if (!passedTrek) {
+          setIsLoading(true);
+          const dbTrek = await trekService.getTrekById(trekId);
+          setFetchedTrek(dbTrek);
+        }
+        const dbReviews = await trekService.getTrekReviews(trekId);
+        setReviews(dbReviews);
+      } catch (error) {
+        console.error('Error fetching trek data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [trekId, passedTrek]);
+
+  const rawTrek = passedTrek || fetchedTrek || {};
 
   const trek = {
-    id: passedTrek.id || 'unknown',
-    name: passedTrek.name || 'Unknown Trek',
-    location: passedTrek.location || 'Unknown Location',
-    rating: passedTrek.rating || 4.5,
-    reviewCount: passedTrek.reviewCount || 0,
-    tags: passedTrek.tags || ['Adventure'],
-    duration: passedTrek.durationDays ? `${passedTrek.durationDays} Days` : (passedTrek.duration || 'Unknown'),
-    distance: passedTrek.distanceKm ? `${passedTrek.distanceKm} km` : (passedTrek.distance || '-'),
-    difficulty: passedTrek.difficulty || 'Moderate',
-    maxAltitude: passedTrek.maxAltitudeFt ? `${passedTrek.maxAltitudeFt} ft` : '-',
+    id: rawTrek.id || 'unknown',
+    name: rawTrek.name || 'Unknown Trek',
+    location: rawTrek.location || 'Unknown Location',
+    rating: rawTrek.rating || 4.5,
+    reviewCount: rawTrek.reviewCount || 0,
+    tags: rawTrek.tags || ['Adventure'],
+    duration: rawTrek.durationDays ? `${rawTrek.durationDays} Days` : (rawTrek.duration || 'Unknown'),
+    distance: rawTrek.distanceKm ? `${rawTrek.distanceKm} km` : (rawTrek.distance || '-'),
+    difficulty: rawTrek.difficulty || 'Moderate',
+    maxAltitude: rawTrek.maxAltitudeFt ? `${rawTrek.maxAltitudeFt} ft` : '-',
     imageUrls: (() => {
-      const thumb = passedTrek.imageUrl ? [passedTrek.imageUrl] : [];
-      const rest = (passedTrek.imageUrls || []).filter((u: string) => u !== passedTrek.imageUrl);
+      const thumb = rawTrek.imageUrl ? [rawTrek.imageUrl] : [];
+      const rest = (rawTrek.imageUrls || []).filter((u: string) => u !== rawTrek.imageUrl);
       const merged = [...thumb, ...rest];
       return merged.length > 0 ? merged : ['https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80'];
     })(),
-    photoCount: passedTrek.photoCount || (passedTrek.imageUrls ? passedTrek.imageUrls.length + 1 : 1),
-    price: passedTrek.estimatedCost || passedTrek.price || '-',
-    description: passedTrek.description || 'No description available for this trek.',
-    highlights: passedTrek.highlights || [],
-    bestTime: passedTrek.bestTime || [],
-    inclusions: passedTrek.inclusions || [],
-    essentials: passedTrek.essentials || [],
-    itinerary: passedTrek.itinerary || [],
-    provider: passedTrek.provider || {
+    photoCount: rawTrek.photoCount || (rawTrek.imageUrls ? rawTrek.imageUrls.length + 1 : 1),
+    price: rawTrek.estimatedCost || rawTrek.price || '-',
+    description: rawTrek.description || 'No description available for this trek.',
+    highlights: rawTrek.highlights || [],
+    bestTime: rawTrek.bestTime || [],
+    inclusions: rawTrek.inclusions || [],
+    essentials: rawTrek.essentials || [],
+    itinerary: rawTrek.itinerary || [],
+    provider: rawTrek.provider || {
       name: 'Local Guides',
       rating: 4.5,
       reviewCount: 0,
@@ -114,6 +151,39 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        
+        <View style={styles.heroContainer}>
+          <SkeletonItem style={{ width: '100%', height: '100%', backgroundColor: colors.surface }} />
+        </View>
+        
+        <View style={[styles.sheet, { marginTop: -28 }]}>
+          <SkeletonItem style={{ width: '60%', height: normalize(28), backgroundColor: colors.outline, borderRadius: normalize(6), marginBottom: normalize(16) }} />
+          <View style={styles.locationRatingRow}>
+             <SkeletonItem style={{ width: '40%', height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+             <SkeletonItem style={{ width: '30%', height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+          </View>
+          <SkeletonItem style={{ width: '100%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(8) }} />
+          <SkeletonItem style={{ width: '100%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(8) }} />
+          <SkeletonItem style={{ width: '80%', height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(24) }} />
+          
+          <View style={styles.statsRow}>
+            {[1, 2, 3, 4].map(i => (
+              <View key={i} style={styles.statItem}>
+                <SkeletonItem style={{ width: normalize(22), height: normalize(22), borderRadius: normalize(11), backgroundColor: colors.outline, marginBottom: normalize(6) }} />
+                <SkeletonItem style={{ width: normalize(50), height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(4) }} />
+                <SkeletonItem style={{ width: normalize(40), height: normalize(10), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -271,7 +341,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
             <View style={styles.tabContent}>
               <View style={styles.itineraryHeader}>
                  <Text style={styles.sectionTitle}>Trek Itinerary</Text>
-                 <TouchableOpacity>
+                 <TouchableOpacity onPress={() => navigation.navigate('Itinerary')} activeOpacity={0.8}>
                    <Text style={styles.viewAllText}>View full itinerary</Text>
                  </TouchableOpacity>
               </View>

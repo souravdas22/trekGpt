@@ -15,6 +15,7 @@ export interface TrekDocument {
   photoCount?: number;
   isFeatured?: boolean;
   isPopular?: boolean;
+  isUpcoming?: boolean;
   createdAt?: any;
   distanceKm?: number;
   maxAltitudeFt?: number;

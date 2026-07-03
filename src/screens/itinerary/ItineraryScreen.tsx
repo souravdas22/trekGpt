@@ -279,12 +279,14 @@ export const ItineraryScreen = ({ navigation }: ItineraryScreenProps) => {
             const isLast = index === items.length - 1;
             return (
               <View key={item.id} style={styles.timelineRow}>
+                {/* Background Card */}
+                <View style={styles.cardBackground} />
+
                 {/* Left Timeline Line & Dot column */}
                 <View style={styles.timelineCol}>
                   {/* Dashed Line */}
                   {!isLast && (
                     <View style={styles.dashedLineContainer}>
-                      {/* We simulate a dashed line using multiple small vertical dash lines for exact styling cross-platform */}
                       <View style={styles.dashedLine} />
                     </View>
                   )}
@@ -366,26 +368,26 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     gap: normalize(12),
   },
   tabButton: {
-    height: normalize(42),
-    paddingHorizontal: normalize(22),
-    borderRadius: normalize(21),
-    backgroundColor: colors.surface,
+    height: normalize(36),
+    paddingHorizontal: normalize(16),
+    borderRadius: normalize(18),
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: colors.outline,
+    borderColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabButtonActive: {
-    backgroundColor: colors.accent,
+    backgroundColor: 'transparent',
     borderColor: colors.accent,
   },
   tabButtonText: {
-    fontSize: normalizeFont(14),
+    fontSize: normalizeFont(13),
     color: colors.muted,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: '#0D1117',
+    color: colors.accent,
   },
 
   // Timeline list
@@ -400,8 +402,23 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   timelineRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: normalize(0),
-    minHeight: normalize(125),
+    padding: normalize(12),
+    paddingLeft: normalize(4),
+    marginBottom: normalize(16),
+    minHeight: normalize(100),
+    position: 'relative',
+  },
+  cardBackground: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: normalize(16),
+    borderWidth: 1,
+    borderColor: colors.outline,
+    zIndex: 0,
   },
   timelineCol: {
     width: normalize(40),
@@ -417,7 +434,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   specialNodeOuter: {
     width: normalize(30),
@@ -435,7 +452,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   standardNodeOuter: {
     width: normalize(24),
@@ -458,8 +475,9 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   dashedLineContainer: {
     position: 'absolute',
     top: normalize(26),
-    bottom: -10,
-    left: normalize(19),
+    bottom: normalize(-38),
+    left: '50%',
+    marginLeft: normalize(-1),
     width: normalize(2),
     zIndex: 1,
     overflow: 'hidden',
@@ -476,35 +494,34 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   // Middle content column
   contentCol: {
     flex: 1,
-    paddingLeft: normalize(12),
-    paddingRight: normalize(16),
-    paddingTop: normalize(4),
+    paddingRight: normalize(12),
+    justifyContent: 'center',
   },
   timeText: {
-    fontSize: normalizeFont(12),
+    fontSize: normalizeFont(11),
     color: colors.muted,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: normalize(4),
   },
   titleText: {
-    fontSize: normalizeFont(16),
+    fontSize: normalizeFont(15),
     color: colors.text,
     fontWeight: '700',
     marginBottom: normalize(4),
   },
   descriptionText: {
-    fontSize: normalizeFont(13),
+    fontSize: normalizeFont(12),
     color: colors.muted,
     lineHeight: normalizeFont(18),
+    fontStyle: 'italic',
   },
 
   // Right image column
   imageCol: {
-    width: normalize(85),
-    height: normalize(85),
-    borderRadius: normalize(16),
+    width: normalize(65),
+    height: normalize(65),
+    borderRadius: normalize(12),
     overflow: 'hidden',
-    marginTop: normalize(4),
   },
   thumbnail: {
     width: '100%',
