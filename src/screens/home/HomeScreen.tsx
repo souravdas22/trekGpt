@@ -15,13 +15,36 @@ import {
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import LinearGradient from 'react-native-linear-gradient';
 import { normalize, normalizeFont } from '@theme/normalize';
 import Svg, { Circle } from 'react-native-svg';
 import { trekService, TrekDocument } from '../../services/firebase/trek.service';
+import { weatherService } from '../../services/weather/weather.service';
+import { mapService } from '../../services/maps/map.service';
+import { getAuth } from '@react-native-firebase/auth';
+import { getFirestore, doc, getDoc } from '@react-native-firebase/firestore';
+import { COLLECTIONS } from '../../services/firebase/collections';
+
+const getWeatherIconName = (code: string) => {
+  switch (code) {
+    case '01d': return 'weather-sunny';
+    case '01n': return 'weather-night';
+    case '02d': return 'weather-partly-cloudy';
+    case '02n': return 'weather-night-partly-cloudy';
+    case '03d': case '03n': return 'weather-cloudy';
+    case '04d': case '04n': return 'weather-cloudy';
+    case '09d': case '09n': return 'weather-pouring';
+    case '10d': return 'weather-partly-rainy';
+    case '10n': return 'weather-rainy';
+    case '11d': case '11n': return 'weather-lightning';
+    case '13d': case '13n': return 'weather-snowy';
+    case '50d': case '50n': return 'weather-fog';
+    default: return 'weather-partly-cloudy';
+  }
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -101,6 +124,11 @@ export const HomeScreen = () => {
   const [activeUpcomingIndex, setActiveUpcomingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [weatherTemp, setWeatherTemp] = useState<number | null>(null);
+  const [weatherIcon, setWeatherIcon] = useState<string>('weather-partly-cloudy');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('');
+  const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true);
 
   const onUpcomingScroll = (e: any) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -142,6 +170,22 @@ export const HomeScreen = () => {
       setAiPicks(picks);
       setTrending(trendingList);
       setUpcomingTreks(upcomingList.length > 0 ? upcomingList : picks.map(p => ({ ...p, daysLeft: Math.floor(Math.random() * 14) + 2, progress: Math.floor(Math.random() * 40) + 40 })));
+
+      // Fetch Weather
+      try {
+        const loc = await mapService.getCurrentLocation();
+        const weather = await weatherService.getWeatherForLocation(loc.latitude, loc.longitude);
+        setWeatherTemp(weather.current.temperature);
+        setWeatherIcon(getWeatherIconName(weather.current.icon));
+      } catch (e) {
+        try {
+          const weather = await weatherService.getWeatherForLocation(22.5726, 88.3639); // Fallback to Kolkata
+          setWeatherTemp(weather.current.temperature);
+          setWeatherIcon(getWeatherIconName(weather.current.icon));
+        } catch (err) {
+          console.error(err);
+        }
+      }
     } catch (error) {
       console.error('Error fetching home data', error);
     } finally {
@@ -152,6 +196,41 @@ export const HomeScreen = () => {
   React.useEffect(() => {
     fetchHomeData();
   }, [fetchHomeData]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchUserProfile = async () => {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          setIsProfileLoading(true);
+          const db = getFirestore();
+          try {
+            const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              if (data?.avatarUrl) {
+                setUserAvatar(data.avatarUrl);
+              }
+              if (data?.fullName) {
+                const firstName = data.fullName.split(' ')[0];
+                setUserName(firstName);
+              } else if (user.displayName) {
+                setUserName(user.displayName.split(' ')[0]);
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching user profile:', e);
+          } finally {
+            setIsProfileLoading(false);
+          }
+        } else {
+          setIsProfileLoading(false);
+        }
+      };
+      fetchUserProfile();
+    }, [])
+  );
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -174,19 +253,32 @@ export const HomeScreen = () => {
         {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Hello, Agnes <Text style={{fontSize: normalizeFont(24)}}>👋</Text></Text>
+            {isProfileLoading ? (
+              <SkeletonItem style={{ width: normalize(140), height: normalize(28), backgroundColor: colors.surface, borderRadius: normalize(6), marginBottom: normalize(4) }} />
+            ) : (
+              <Text style={styles.greeting}>Hello, {userName || 'Explorer'} <Text style={{fontSize: normalizeFont(24)}}>👋</Text></Text>
+            )}
             <Text style={styles.subGreeting}>Where will your next adventure be?</Text>
           </View>
           <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.bellIcon} activeOpacity={0.8} onPress={() => navigation.navigate('Search')}>
+              <Icon name="magnify" size={24} color={colors.text} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.bellIcon} activeOpacity={0.8}>
               <Icon name="bell-outline" size={24} color={colors.text} />
               <View style={styles.notificationDot} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.avatarContainer} activeOpacity={0.8} onPress={() => navigation.navigate('Profile')}>
-              <Image 
-                source={{ uri: 'https://i.pravatar.cc/150?img=47' }} 
-                style={styles.avatarImage} 
-              />
+              {userAvatar ? (
+                <Image 
+                  source={{ uri: userAvatar }} 
+                  style={styles.avatarImage} 
+                />
+              ) : (
+                <View style={[styles.avatarImage, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Icon name="account" size={24} color={colors.muted} />
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -380,7 +472,7 @@ export const HomeScreen = () => {
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Essential Quick Access</Text>
           <View style={styles.quickAccessGrid}>
-            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('AIPlanner')}>
+            <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('AI Planner')}>
               <Icon name="robot-outline" size={32} color={colors.accent} />
               <Text style={styles.quickActionText}>AI Planner</Text>
             </TouchableOpacity>
@@ -393,8 +485,8 @@ export const HomeScreen = () => {
               <Text style={styles.quickActionText}>Gear{'\n'}Checklist</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickActionCard} onPress={() => navigation.navigate('Weather')}>
-              <Icon name="weather-partly-cloudy" size={32} color={colors.accent} />
-              <Text style={styles.quickActionText}>Weather</Text>
+              <Icon name={weatherIcon} size={32} color={colors.accent} />
+              <Text style={styles.quickActionText}>{weatherTemp !== null ? `${Math.round(weatherTemp)}°C` : 'Weather'}</Text>
             </TouchableOpacity>
           </View>
         </View>

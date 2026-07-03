@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import React from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,48 +8,157 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  TextInput,
+  ActivityIndicator,
+  Keyboard,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
+import { weatherService } from '../../services/weather/weather.service';
+import { mapService } from '../../services/maps/map.service';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-interface HourlyForecast {
-  time: string;
-  temp: number;
-  icon: string;
-  isNow?: boolean;
-}
+const getWeatherIconName = (code: string) => {
+  switch (code) {
+    case '01d': return 'weather-sunny';
+    case '01n': return 'weather-night';
+    case '02d': return 'weather-partly-cloudy';
+    case '02n': return 'weather-night-partly-cloudy';
+    case '03d': case '03n': return 'weather-cloudy';
+    case '04d': case '04n': return 'weather-cloudy';
+    case '09d': case '09n': return 'weather-pouring';
+    case '10d': return 'weather-partly-rainy';
+    case '10n': return 'weather-rainy';
+    case '11d': case '11n': return 'weather-lightning';
+    case '13d': case '13n': return 'weather-snowy';
+    case '50d': case '50n': return 'weather-fog';
+    default: return 'weather-partly-cloudy';
+  }
+};
 
-interface DailyForecast {
-  day: string;
-  high: number;
-  low: number;
-  icon: string;
-}
+const formatTime = (timestamp: number) => {
+  const date = new Date(timestamp * 1000);
+  let hours = date.getHours();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}${ampm}`;
+};
 
-const hourlyData: HourlyForecast[] = [
-  { time: 'Now', temp: 12, icon: 'weather-cloudy', isNow: true },
-  { time: '11AM', temp: 13, icon: 'weather-cloudy' },
-  { time: '12PM', temp: 14, icon: 'weather-cloudy' },
-  { time: '1PM', temp: 14, icon: 'weather-cloudy' },
-  { time: '2PM', temp: 15, icon: 'weather-cloudy' },
-  { time: '3PM', temp: 15, icon: 'weather-partly-cloudy' },
-];
+const formatDay = (timestamp: number) => {
+  const date = new Date(timestamp * 1000);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = new Date().getDay();
+  if (date.getDay() === today) return 'Today';
+  return days[date.getDay()];
+};
 
-const dailyData: DailyForecast[] = [
-  { day: 'Today', high: 15, low: 7, icon: 'weather-partly-cloudy' },
-  { day: 'Sat', high: 16, low: 8, icon: 'weather-partly-cloudy' },
-  { day: 'Sun', high: 18, low: 9, icon: 'weather-sunny' },
-  { day: 'Mon', high: 17, low: 8, icon: 'weather-pouring' },
-  { day: 'Tue', high: 16, low: 7, icon: 'weather-pouring' },
-];
+const SkeletonItem = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.5)).current;
+
+  React.useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true })
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulseAnim]);
+
+  return (
+    <Animated.View style={[style, { opacity: pulseAnim }]} />
+  );
+};
 
 export const WeatherScreen = ({ navigation }: any) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [locationName, setLocationName] = useState('Current Location');
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchWeather = async (lat: number, lon: number, name: string) => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await weatherService.getWeatherForLocation(lat, lon);
+      setWeatherData(data);
+      setLocationName(name);
+    } catch (err: any) {
+      setErrorMsg('Failed to fetch weather');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCurrentLocationWeather = async () => {
+    try {
+      setIsLoading(true);
+      const loc = await mapService.getCurrentLocation();
+      await fetchWeather(loc.latitude, loc.longitude, 'Current Location');
+    } catch (e) {
+      // Fallback
+      await fetchWeather(22.5726, 88.3639, 'Kolkata');
+    }
+  };
+
+  useEffect(() => {
+    loadCurrentLocationWeather();
+  }, []);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    Keyboard.dismiss();
+    setShowSuggestions(false);
+    setIsLoading(true);
+    setErrorMsg(null);
+    const coords = await weatherService.getCoordinatesForCity(searchQuery.trim());
+    if (coords) {
+      await fetchWeather(coords.lat, coords.lon, coords.name);
+    } else {
+      setIsLoading(false);
+      setErrorMsg('Location not found');
+    }
+    setSearchQuery('');
+  };
+
+  const onSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim().length > 2) {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      searchTimeout.current = setTimeout(async () => {
+        const res = await weatherService.searchCitySuggestions(text.trim());
+        if (res) {
+          setSuggestions(res);
+          setShowSuggestions(true);
+        }
+      }, 500);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const onSelectSuggestion = async (item: any) => {
+    Keyboard.dismiss();
+    setShowSuggestions(false);
+    setSearchQuery('');
+    setSuggestions([]);
+    await fetchWeather(item.lat, item.lon, item.name);
+  };
 
   return (
     <View style={styles.container}>
@@ -70,65 +178,165 @@ export const WeatherScreen = ({ navigation }: any) => {
           <Text style={styles.headerTitle}>Weather Forecast</Text>
           <View style={styles.locationContainer}>
             <Icon name="map-marker-outline" size={14} color={colors.muted} />
-            <Text style={styles.locationText}>Chamonix, France</Text>
+            <Text style={styles.locationText}>{locationName}</Text>
           </View>
         </View>
 
         <View style={styles.headerRightPlaceholder} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
-        {/* ── Current Weather ── */}
-        <View style={styles.currentWeatherContainer}>
-          <View style={styles.currentTempContainer}>
-            <Text style={styles.currentTemp}>12</Text>
-            <Text style={styles.currentTempDegree}>°</Text>
-          </View>
-          
-          <Icon name="weather-cloudy" size={120} color={colors.text} style={styles.currentWeatherIcon} />
+      {/* ── Search Bar ── */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Icon name="magnify" size={20} color={colors.muted} style={styles.searchIconLeft} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search location..."
+            placeholderTextColor={colors.muted}
+            value={searchQuery}
+            onChangeText={onSearchChange}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+            selectionColor={colors.accent}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => {
+              setSearchQuery('');
+              setSuggestions([]);
+              setShowSuggestions(false);
+            }}>
+              <Icon name="close-circle" size={20} color={colors.muted} style={styles.searchIconRight} />
+            </TouchableOpacity>
+          )}
         </View>
-        
-        <Text style={styles.weatherCondition}>Cloudy</Text>
-        <View style={styles.highLowContainer}>
-          <Text style={styles.highLowText}>H: 15°</Text>
-          <Text style={styles.highLowText}>  L: 7°</Text>
-        </View>
+      </View>
 
-        {/* ── Hourly Forecast ── */}
-        <View style={styles.glassCard}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hourlyScroll}>
-            {hourlyData.map((item, index) => (
-              <View key={index} style={styles.hourlyItem}>
-                <Text style={[styles.hourlyTime, item.isNow && styles.hourlyTimeNow]}>
-                  {item.time}
-                </Text>
-                <Icon name={item.icon} size={28} color={colors.text} style={styles.hourlyIcon} />
-                <Text style={styles.hourlyTemp}>{item.temp}°</Text>
+      {showSuggestions && suggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          {suggestions.map((item, index) => (
+            <TouchableOpacity 
+              key={`${item.lat}-${item.lon}-${index}`} 
+              style={[styles.suggestionItem, index === suggestions.length - 1 && { borderBottomWidth: 0 }]} 
+              onPress={() => onSelectSuggestion(item)}
+            >
+              <Icon name="map-marker" size={18} color={colors.muted} style={{ marginRight: 10 }} />
+              <View>
+                <Text style={styles.suggestionTitle}>{item.name}</Text>
+                <Text style={styles.suggestionSub}>{item.state ? `${item.state}, ` : ''}{item.country}</Text>
               </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ── Daily Forecast ── */}
-        <View style={[styles.glassCard, styles.dailyCard]}>
-          {dailyData.map((item, index) => (
-            <View key={index} style={styles.dailyItem}>
-              <Text style={styles.dailyDay}>{item.day}</Text>
-              
-              <View style={styles.dailyIconContainer}>
-                <Icon name={item.icon} size={24} color={colors.text} />
-              </View>
-              
-              <View style={styles.dailyTempContainer}>
-                <Text style={styles.dailyHigh}>{item.high}°</Text>
-                <Text style={styles.dailyLow}>{item.low}°</Text>
-              </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
+      )}
 
-      </ScrollView>
+      {isLoading ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* ── Current Weather Skeleton ── */}
+          <View style={styles.currentWeatherContainer}>
+            <View style={styles.currentTempContainer}>
+              <SkeletonItem style={{ width: normalize(120), height: normalize(100), backgroundColor: colors.outline, borderRadius: normalize(12) }} />
+            </View>
+            <SkeletonItem style={{ width: normalize(100), height: normalize(100), backgroundColor: colors.outline, borderRadius: normalize(50) }} />
+          </View>
+          
+          <SkeletonItem style={{ width: normalize(150), height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(8), marginBottom: normalize(6) }} />
+          <View style={styles.highLowContainer}>
+            <SkeletonItem style={{ width: normalize(100), height: normalize(18), backgroundColor: colors.outline, borderRadius: normalize(8) }} />
+          </View>
+
+          {/* ── Hourly Forecast Skeleton ── */}
+          <View style={styles.glassCard}>
+            <View style={[styles.hourlyScroll, { flexDirection: 'row', paddingHorizontal: normalize(20) }]}>
+              {[1, 2, 3, 4, 5].map((key) => (
+                <View key={key} style={styles.hourlyItem}>
+                  <SkeletonItem style={{ width: normalize(30), height: normalize(14), backgroundColor: colors.outline, borderRadius: normalize(4), marginBottom: normalize(12) }} />
+                  <SkeletonItem style={{ width: normalize(32), height: normalize(32), backgroundColor: colors.outline, borderRadius: normalize(16), marginBottom: normalize(12) }} />
+                  <SkeletonItem style={{ width: normalize(24), height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* ── Daily Forecast Skeleton ── */}
+          <View style={[styles.glassCard, styles.dailyCard]}>
+            {[1, 2, 3, 4, 5].map((key) => (
+              <View key={key} style={styles.dailyItem}>
+                <SkeletonItem style={{ width: normalize(50), height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                <View style={styles.dailyIconContainer}>
+                  <SkeletonItem style={{ width: normalize(24), height: normalize(24), backgroundColor: colors.outline, borderRadius: normalize(12) }} />
+                </View>
+                <View style={styles.dailyTempContainer}>
+                  <SkeletonItem style={{ width: normalize(30), height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4), marginRight: normalize(16) }} />
+                  <SkeletonItem style={{ width: normalize(30), height: normalize(16), backgroundColor: colors.outline, borderRadius: normalize(4) }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      ) : errorMsg ? (
+        <View style={styles.centerContainer}>
+          <Icon name="alert-circle-outline" size={48} color={colors.muted} style={{ marginBottom: 12 }} />
+          <Text style={{ color: colors.text }}>{errorMsg}</Text>
+          <TouchableOpacity onPress={loadCurrentLocationWeather} style={{ marginTop: 20 }}>
+            <Text style={{ color: colors.accent }}>Use Current Location</Text>
+          </TouchableOpacity>
+        </View>
+      ) : weatherData && (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          
+          {/* ── Current Weather ── */}
+          <View style={styles.currentWeatherContainer}>
+            <View style={styles.currentTempContainer}>
+              <Text style={styles.currentTemp}>{Math.round(weatherData.current.temperature)}</Text>
+              <Text style={styles.currentTempDegree}>°</Text>
+            </View>
+            
+            <Icon name={getWeatherIconName(weatherData.current.icon)} size={120} color={colors.text} style={styles.currentWeatherIcon} />
+          </View>
+          
+          <Text style={styles.weatherCondition}>{weatherData.current.description}</Text>
+          {weatherData.daily && weatherData.daily.length > 0 && (
+            <View style={styles.highLowContainer}>
+              <Text style={styles.highLowText}>H: {Math.round(weatherData.daily[0].maxTemp)}°</Text>
+              <Text style={styles.highLowText}>  L: {Math.round(weatherData.daily[0].minTemp)}°</Text>
+            </View>
+          )}
+
+          {/* ── Hourly Forecast ── */}
+          <View style={styles.glassCard}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hourlyScroll}>
+              {weatherData.hourly?.slice(0, 9).map((item: any, index: number) => (
+                <View key={index} style={styles.hourlyItem}>
+                  <Text style={[styles.hourlyTime, index === 0 && styles.hourlyTimeNow]}>
+                    {index === 0 ? 'Now' : formatTime(item.timestamp)}
+                  </Text>
+                  <Icon name={getWeatherIconName(item.icon)} size={28} color={colors.text} style={styles.hourlyIcon} />
+                  <Text style={styles.hourlyTemp}>{Math.round(item.temperature)}°</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* ── Daily Forecast ── */}
+          <View style={[styles.glassCard, styles.dailyCard]}>
+            {weatherData.daily?.slice(0, 7).map((item: any, index: number) => (
+              <View key={index} style={styles.dailyItem}>
+                <Text style={styles.dailyDay}>{formatDay(item.timestamp)}</Text>
+                
+                <View style={styles.dailyIconContainer}>
+                  <Icon name={getWeatherIconName(item.icon)} size={24} color={colors.text} />
+                </View>
+                
+                <View style={styles.dailyTempContainer}>
+                  <Text style={styles.dailyHigh}>{Math.round(item.maxTemp)}°</Text>
+                  <Text style={styles.dailyLow}>{Math.round(item.minTemp)}°</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -138,6 +346,11 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   // Header
   header: {
     flexDirection: 'row',
@@ -145,7 +358,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: normalize(22),
     paddingTop: Platform.OS === 'ios' ? 54 : (StatusBar.currentHeight ?? 28) + 12,
-    paddingBottom: normalize(24),
+    paddingBottom: normalize(12),
   },
   backBtn: {
     width: normalize(44),
@@ -180,6 +393,69 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   },
   headerRightPlaceholder: {
     width: normalize(44),
+  },
+
+  // Search
+  searchContainer: {
+    paddingHorizontal: normalize(22),
+    marginBottom: normalize(16),
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: normalize(12),
+    height: normalize(48),
+    paddingHorizontal: normalize(16),
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  searchIconLeft: {
+    marginRight: normalize(10),
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: normalizeFont(14),
+  },
+  searchIconRight: {
+    marginLeft: normalize(10),
+  },
+
+  // Suggestions
+  suggestionsContainer: {
+    backgroundColor: colors.surface,
+    marginHorizontal: normalize(22),
+    borderRadius: normalize(12),
+    paddingVertical: normalize(8),
+    borderWidth: 1,
+    borderColor: colors.outline,
+    marginBottom: normalize(16),
+    marginTop: normalize(-8),
+    elevation: 5,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: normalize(16),
+    paddingVertical: normalize(12),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.outline,
+  },
+  suggestionTitle: {
+    color: colors.text,
+    fontSize: normalizeFont(14),
+    fontWeight: '600',
+  },
+  suggestionSub: {
+    color: colors.muted,
+    fontSize: normalizeFont(12),
+    marginTop: normalize(2),
   },
 
   // Content Scroll
@@ -224,6 +500,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     fontWeight: '500',
     color: colors.text,
     marginBottom: normalize(6),
+    textTransform: 'capitalize',
   },
   highLowContainer: {
     flexDirection: 'row',

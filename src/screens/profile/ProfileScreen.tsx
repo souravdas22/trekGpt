@@ -10,15 +10,20 @@ import {
   Platform,
   Image,
   ImageBackground,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
+import ImageView from 'react-native-image-viewing';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { useDispatch } from 'react-redux';
 import { logout } from '@store/slices/authSlice';
 import { normalize, normalizeFont } from '@theme/normalize';
-import { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { COLLECTIONS } from '../../services/firebase/collections';
 
 interface MenuItem {
@@ -52,12 +57,112 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   const [achievements, setAchievements] = React.useState<any[]>([]);
   const [isLoadingAchievements, setIsLoadingAchievements] = React.useState(true);
 
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [isUploadingImage, setIsUploadingImage] = React.useState(false);
+  const [isImageViewVisible, setIsImageViewVisible] = React.useState(false);
+  const [profileData, setProfileData] = React.useState({
+    fullName: 'Agnes Walker',
+    location: 'Bangalore, India',
+    bio: 'Mountains are my therapy.\nAlways chasing new trails and sunrise views.',
+    avatarUrl: null as string | null,
+  });
+  const [editData, setEditData] = React.useState({ ...profileData });
+
+  const handleSaveProfile = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) {
+      console.warn('No authenticated user found');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const db = getFirestore();
+      await setDoc(doc(db, COLLECTIONS.USERS, user.uid), editData, { merge: true });
+      setProfileData({ ...editData });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to save profile to DB:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleImagePick = async () => {
+    try {
+      const result = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      if (result.didCancel || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      if (!asset.uri) return;
+
+      setIsUploadingImage(true);
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || 'avatar.jpg',
+      } as any);
+      formDataUpload.append('upload_preset', 'trekgpt_preset');
+      
+      const res = await fetch(`https://api.cloudinary.com/v1_1/ddav4rqeo/image/upload`, {
+        method: 'POST',
+        body: formDataUpload as any,
+      });
+      const data = await res.json() as any;
+      
+      if (data.secure_url) {
+        // Automatically save the new avatar URL to Firestore
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          const db = getFirestore();
+          await setDoc(doc(db, COLLECTIONS.USERS, user.uid), { avatarUrl: data.secure_url }, { merge: true });
+        }
+        setProfileData((prev) => ({ ...prev, avatarUrl: data.secure_url }));
+        setEditData((prev) => ({ ...prev, avatarUrl: data.secure_url }));
+      } else {
+        console.error('Image upload failed:', data);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   React.useEffect(() => {
+    const fetchProfile = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const db = getFirestore();
+          const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data() as any;
+            const loadedData = {
+              fullName: data.fullName || user.displayName || 'Agnes Walker',
+              location: data.location || 'Bangalore, India',
+              bio: data.bio || 'Mountains are my therapy.\nAlways chasing new trails and sunrise views.',
+              avatarUrl: data.avatarUrl || user.photoURL || null,
+            };
+            setProfileData(loadedData);
+            setEditData(loadedData);
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+      }
+    };
+
     const fetchAchievements = async () => {
       try {
         const db = getFirestore();
         const snapshot = await getDocs(collection(db, COLLECTIONS.ACHIEVEMENTS));
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const data = snapshot.docs.map(docId => ({ id: docId.id, ...docId.data() }));
         setAchievements(data);
       } catch (e) {
         console.error('Error fetching achievements', e);
@@ -65,6 +170,8 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         setIsLoadingAchievements(false);
       }
     };
+    
+    fetchProfile();
     fetchAchievements();
   }, []);
 
@@ -113,32 +220,119 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         {/* ── Avatar & Info ── */}
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarRing}>
-              <Image
-                source={require('@assets/images/splash_bg.png')} // Replace with proper avatar source
-                style={styles.avatar}
+            <TouchableOpacity 
+              style={styles.avatarRing} 
+              activeOpacity={0.8}
+              onPress={() => {
+                if (profileData.avatarUrl) {
+                  setIsImageViewVisible(true);
+                }
+              }}
+            >
+              {profileData.avatarUrl ? (
+                <Image
+                  source={{ uri: profileData.avatarUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, styles.fallbackAvatar]}>
+                  <Icon name="account" size={54} color={colors.muted} />
+                </View>
+              )}
+              {isUploadingImage && (
+                <View style={[StyleSheet.absoluteFill, styles.fallbackAvatar, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.cameraIconBadge}
+              onPress={handleImagePick}
+              activeOpacity={0.8}
+              disabled={isUploadingImage}
+            >
+              <Icon name="pencil" size={14} color="#000" />
+            </TouchableOpacity>
+          </View>
+          
+          {isEditing ? (
+            <View style={styles.editContainer}>
+              <Text style={styles.editLabel}>Full Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editData.fullName}
+                onChangeText={(text) => setEditData({...editData, fullName: text})}
+                placeholder="Enter your name"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
               />
+              
+              <Text style={styles.editLabel}>Location</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editData.location}
+                onChangeText={(text) => setEditData({...editData, location: text})}
+                placeholder="Enter your location"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+              />
+              
+              <Text style={styles.editLabel}>Bio</Text>
+              <TextInput
+                style={[styles.editInput, styles.editInputMultiline]}
+                value={editData.bio}
+                onChangeText={(text) => setEditData({...editData, bio: text})}
+                placeholder="Tell us about yourself"
+                placeholderTextColor={colors.muted}
+                selectionColor={colors.accent}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              
+              <View style={styles.editActionRow}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => {
+                  setEditData({...profileData});
+                  setIsEditing(false);
+                }} disabled={isSaving}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile} disabled={isSaving}>
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Save Profile</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.cameraIconBadge}>
-              <Icon name="camera" size={14} color="#000" />
-            </View>
-          </View>
-          
-          <View style={styles.nameRow}>
-            <Text style={styles.userName}>Agnes Walker</Text>
-            <Icon name="check-decagram" size={22} color={colors.accent} style={styles.verifiedIcon} />
-          </View>
-          
-          <Text style={styles.userBadge}>Explorer · <Text style={{ color: colors.accent }}>Level 12</Text></Text>
-          
-          <View style={styles.locationRow}>
-            <Icon name="map-marker-outline" size={14} color={colors.muted} />
-            <Text style={styles.locationText}>Bangalore, India</Text>
-          </View>
+          ) : (
+            <>
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>{profileData.fullName}</Text>
+                <Icon name="check-decagram" size={22} color={colors.accent} style={styles.verifiedIcon} />
+              </View>
+              
+              <Text style={styles.userBadge}>Explorer · <Text style={{ color: colors.accent }}>Level 12</Text></Text>
+              
+              <View style={styles.locationRow}>
+                <Icon name="map-marker-outline" size={14} color={colors.muted} />
+                <Text style={styles.locationText}>{profileData.location}</Text>
+              </View>
+    
+              <Text style={styles.bioText}>
+                {profileData.bio}
+              </Text>
 
-          <Text style={styles.bioText}>
-            Mountains are my therapy.{'\n'}Always chasing new trails and sunrise views.
-          </Text>
+              <TouchableOpacity style={styles.editProfileBtn} onPress={() => {
+                setEditData({ ...profileData });
+                setIsEditing(true);
+              }}>
+                <Icon name="pencil-outline" size={16} color={colors.text} style={{ marginRight: 6 }} />
+                <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* ── Stats Row ── */}
@@ -231,6 +425,29 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
           <Icon name="terrain" size={100} color="#27272A" style={styles.footerBgImage} />
         </View>
       </ScrollView>
+
+      {profileData.avatarUrl && (
+        <ImageView
+          images={[{ uri: profileData.avatarUrl }]}
+          imageIndex={0}
+          visible={isImageViewVisible}
+          onRequestClose={() => setIsImageViewVisible(false)}
+          HeaderComponent={() => (
+            <TouchableOpacity 
+              style={{ height: 200, width: '100%', backgroundColor: 'transparent' }} 
+              onPress={() => setIsImageViewVisible(false)} 
+              activeOpacity={1} 
+            />
+          )}
+          FooterComponent={() => (
+            <TouchableOpacity 
+              style={{ height: 200, width: '100%', backgroundColor: 'transparent' }} 
+              onPress={() => setIsImageViewVisible(false)} 
+              activeOpacity={1} 
+            />
+          )}
+        />
+      )}
     </View>
   );
 };
@@ -360,6 +577,86 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     color: colors.muted,
     fontSize: normalizeFont(14),
     lineHeight: normalize(22),
+    marginBottom: normalize(16),
+  },
+  editProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: normalize(8),
+    paddingHorizontal: normalize(16),
+    backgroundColor: colors.surface,
+    borderRadius: normalize(8),
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  editProfileBtnText: {
+    color: colors.text,
+    fontSize: normalizeFont(13),
+    fontWeight: '600',
+  },
+  fallbackAvatar: {
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  
+  // Edit Form
+  editContainer: {
+    marginTop: normalize(8),
+    paddingRight: normalize(16),
+  },
+  editLabel: {
+    color: colors.muted,
+    fontSize: normalizeFont(12),
+    fontWeight: '500',
+    marginBottom: normalize(6),
+  },
+  editInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    borderRadius: normalize(8),
+    paddingHorizontal: normalize(12),
+    paddingVertical: normalize(10),
+    color: colors.text,
+    fontSize: normalizeFont(14),
+    marginBottom: normalize(16),
+  },
+  editInputMultiline: {
+    minHeight: normalize(80),
+  },
+  editActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: normalize(12),
+    marginTop: normalize(8),
+    marginBottom: normalize(12),
+  },
+  cancelBtn: {
+    paddingVertical: normalize(10),
+    paddingHorizontal: normalize(16),
+    borderRadius: normalize(8),
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  cancelBtnText: {
+    color: colors.text,
+    fontSize: normalizeFont(13),
+    fontWeight: '600',
+  },
+  saveBtn: {
+    paddingVertical: normalize(10),
+    paddingHorizontal: normalize(16),
+    borderRadius: normalize(8),
+    backgroundColor: colors.accent,
+  },
+  saveBtnText: {
+    color: '#000',
+    fontSize: normalizeFont(13),
+    fontWeight: '600',
   },
 
   // Stats
