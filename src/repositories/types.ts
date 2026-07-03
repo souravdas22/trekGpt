@@ -43,3 +43,63 @@ export interface PostComment {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface StoryDocument {
+  id?: string;
+  name: string;
+  avatar: string;
+  isOnline: boolean;
+  createdAt?: any;
+}
+
+export interface JourneyDocument {
+  id?: string;
+  group: 'trending' | 'featured' | 'list';
+  title: string;
+  author: string;
+  authorAvatar: string;
+  isVerified: boolean;
+  image: string;
+  imageCount: number;
+  location: string;
+  duration: string;
+  description: string;
+  price: string;
+  rating: number;
+  reviews: number;
+  likes: number;
+  comments: number;
+  views: number;
+  badgeType: 'editor' | 'trending' | 'none';
+  badgeText: string;
+  tags: { type: string; text: string }[];
+  createdAt?: any;
+}
+
+export interface CircleDocument {
+  id?: string;
+  group: 'popular' | 'my' | 'discover';
+  name: string;
+  type: string;
+  image: string;
+  description: string;
+  members: number;
+  extraMembers: number;
+  joined: boolean;
+  createdAt?: any;
+}
+
+export interface EventDocument {
+  id?: string;
+  title: string;
+  type: string;
+  image: string;
+  month: string;
+  day: string;
+  weekday: string;
+  location: string;
+  attendees: number;
+  extraAttendees: number;
+  going: boolean;
+  createdAt?: any;
+}

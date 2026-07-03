@@ -1,7 +1,7 @@
 import { CommunityPostRepository } from '../../repositories/CommunityPostRepository';
 import { CommunityLikeRepository } from '../../repositories/CommunityLikeRepository';
 import { CommunityCommentRepository } from '../../repositories/CommunityCommentRepository';
-import { CommunityPost, PostLike, PostComment } from '../../repositories/types';
+import { CommunityPost, PostLike, PostComment, StoryDocument, JourneyDocument, CircleDocument, EventDocument } from '../../repositories/types';
 import { uploadCommunityImage, deleteImage } from './storage.service';
 import { 
   FirebaseFirestoreTypes, 
@@ -167,38 +167,38 @@ class CommunityService {
 
   // --- Methods for other community sections ---
 
-  public async getStories() {
+  public async getStories(): Promise<StoryDocument[]> {
     const firestore = getFirestore();
     const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.STORIES));
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoryDocument));
   }
 
-  public async getJourneys() {
+  public async getJourneys(): Promise<{ trending: JourneyDocument[], featured: JourneyDocument[], list: JourneyDocument[] }> {
     const firestore = getFirestore();
     const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.JOURNEYS));
-    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as JourneyDocument));
     return {
-      trending: all.filter((j: any) => j.group === 'trending'),
-      featured: all.filter((j: any) => j.group === 'featured'),
-      list: all.filter((j: any) => j.group === 'list'),
+      trending: all.filter(j => j.group === 'trending'),
+      featured: all.filter(j => j.group === 'featured'),
+      list: all.filter(j => j.group === 'list'),
     };
   }
 
-  public async getCircles() {
+  public async getCircles(): Promise<{ popular: CircleDocument[], my: CircleDocument[], discover: CircleDocument[] }> {
     const firestore = getFirestore();
     const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.CIRCLES));
-    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CircleDocument));
     return {
-      popular: all.filter((c: any) => c.group === 'popular'),
-      my: all.filter((c: any) => c.group === 'my'),
-      discover: all.filter((c: any) => c.group === 'discover'),
+      popular: all.filter(c => c.group === 'popular'),
+      my: all.filter(c => c.group === 'my'),
+      discover: all.filter(c => c.group === 'discover'),
     };
   }
 
-  public async getEvents() {
+  public async getEvents(): Promise<EventDocument[]> {
     const firestore = getFirestore();
     const snap = await getDocs(firestoreCollection(firestore, COLLECTIONS.EVENTS));
-    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as EventDocument));
   }
 }
 

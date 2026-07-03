@@ -20,6 +20,7 @@ import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
 import { communityService } from '../../services/firebase/community.service';
+import { StoryDocument, JourneyDocument, CircleDocument, EventDocument } from '../../repositories/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -60,16 +61,24 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
+  const formatNum = (num?: number | string) => {
+    if (num === undefined || num === null) return '0';
+    if (typeof num === 'number') return num.toLocaleString();
+    const parsed = parseInt(String(num).replace(/,/g, ''), 10);
+    return isNaN(parsed) ? String(num) : parsed.toLocaleString();
+  };
+
   const [activeTab, setActiveTab] = useState<Tab>('Feed');
   
-  const [stories, setStories] = useState<any[]>([]);
-  const [trendingJourneys, setTrendingJourneys] = useState<any[]>([]);
-  const [featuredJourneys, setFeaturedJourneys] = useState<any[]>([]);
-  const [journeysList, setJourneysList] = useState<any[]>([]);
-  const [popularCircles, setPopularCircles] = useState<any[]>([]);
-  const [myCircles, setMyCircles] = useState<any[]>([]);
-  const [discoverCircles, setDiscoverCircles] = useState<any[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [stories, setStories] = useState<StoryDocument[]>([]);
+  const [trendingJourneys, setTrendingJourneys] = useState<JourneyDocument[]>([]);
+  const [featuredJourneys, setFeaturedJourneys] = useState<JourneyDocument[]>([]);
+  const [journeysList, setJourneysList] = useState<JourneyDocument[]>([]);
+  const [popularCircles, setPopularCircles] = useState<CircleDocument[]>([]);
+  const [myCircles, setMyCircles] = useState<CircleDocument[]>([]);
+  const [discoverCircles, setDiscoverCircles] = useState<CircleDocument[]>([]);
+  console.log(discoverCircles,'discover circles')
+  const [upcomingEvents, setUpcomingEvents] = useState<EventDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -237,7 +246,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                     <Text style={styles.trendingText}>TRENDING</Text>
                   </View>
                   <View style={styles.imageCountBadge}>
-                    <Text style={styles.imageCountText}>{journey.imageCount}</Text>
+                    <Text style={styles.imageCountText}>{formatNum(journey.imageCount)}</Text>
                   </View>
                 </View>
 
@@ -254,11 +263,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                   <View style={styles.journeyFooter}>
                     <View style={styles.journeyStats}>
                       <Icon name="heart" size={16} color={colors.accent} />
-                      <Text style={styles.statText}>{journey.likes}</Text>
+                      <Text style={styles.statText}>{formatNum(journey.likes)}</Text>
                       <Icon name="comment-outline" size={16} color={colors.muted} style={styles.statIcon} />
-                      <Text style={styles.statText}>{journey.comments}</Text>
+                      <Text style={styles.statText}>{formatNum(journey.comments)}</Text>
                       <Icon name="eye-outline" size={16} color={colors.muted} style={styles.statIcon} />
-                      <Text style={styles.statText}>{journey.views}</Text>
+                      <Text style={styles.statText}>{formatNum(journey.views)}</Text>
                     </View>
                     <TouchableOpacity style={styles.viewJourneyBtn}>
                       <Text style={styles.viewJourneyBtnText}>View Journey</Text>
@@ -289,7 +298,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                 </View>
                 <View style={styles.circleContent}>
                   <Text style={styles.circleName}>{circle.name}</Text>
-                  <Text style={styles.circleMembers}>{circle.members} Members</Text>
+                  <Text style={styles.circleMembers}>{formatNum(circle.members)} Members</Text>
                   
                   <View style={styles.circleFooter}>
                     {renderFacepile(22)}
@@ -341,14 +350,14 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                       
                       <View style={styles.eventAttendeesRow}>
                         <Icon name="account-group-outline" size={14} color={colors.muted} />
-                        <Text style={styles.eventAttending}>{event.attendees} attending</Text>
+                        <Text style={styles.eventAttending}>{formatNum(event.attendees)} attending</Text>
                       </View>
                     </View>
                     
                     <View style={styles.eventFooter}>
                       <View style={styles.eventFacepileRow}>
                         {renderFacepile(20, 4)}
-                        <Text style={styles.eventExtraText}>+{event.extraAttendees}</Text>
+                        <Text style={styles.eventExtraText}>+{formatNum(event.extraAttendees)}</Text>
                       </View>
                       
                       <TouchableOpacity style={[styles.eventActionBtn, event.going && styles.eventGoingBtn]}>
@@ -398,12 +407,12 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
                   <View style={styles.myCircleContent}>
                     <Text style={styles.myCircleTitle}>{circle.name}</Text>
-                    <Text style={styles.myCircleMeta}>{circle.members} Members • {circle.type}</Text>
+                    <Text style={styles.myCircleMeta}>{formatNum(circle.members)} Members • {circle.type}</Text>
                     
                     <View style={styles.myCircleFooter}>
                       <View style={styles.myCircleFacepileRow}>
                         {renderFacepile(28, 5)}
-                        <Text style={styles.myCircleExtraText}>+{circle.extraMembers}</Text>
+                        <Text style={styles.myCircleExtraText}>+{formatNum(circle.extraMembers)}</Text>
                       </View>
                       <TouchableOpacity style={styles.myCircleJoinedBtn}>
                         <Text style={styles.myCircleJoinedBtnText}>Joined</Text>
@@ -439,14 +448,14 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                     <View style={styles.discoverContent}>
                       <View>
                         <Text style={styles.discoverTitle} numberOfLines={1}>{circle.name}</Text>
-                        <Text style={styles.discoverMeta}>{circle.members} Members • {circle.type}</Text>
+                        <Text style={styles.discoverMeta}>{formatNum(circle.members)} Members • {circle.type}</Text>
                         <Text style={styles.discoverDesc} numberOfLines={2}>{circle.description}</Text>
                       </View>
                       
                       <View style={styles.discoverFooter}>
                         <View style={styles.discoverFacepileRow}>
                           {renderFacepile(22, 4)}
-                          <Text style={styles.discoverExtraText}>+{circle.extraMembers}</Text>
+                          <Text style={styles.discoverExtraText}>+{formatNum(circle.extraMembers)}</Text>
                         </View>
                         
                         <TouchableOpacity style={[styles.discoverJoinBtn, circle.joined && styles.discoverJoinedBtn]}>
@@ -489,7 +498,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
 
                       <View style={styles.featuredImageCount}>
                         <Icon name="image-multiple" size={10} color={colors.text} />
-                        <Text style={styles.featuredImageCountText}>{journey.imageCount}</Text>
+                        <Text style={styles.featuredImageCountText}>{formatNum(journey.imageCount)}</Text>
                       </View>
                     </View>
 
@@ -507,9 +516,9 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                       <View style={styles.featuredFooter}>
                         <View style={styles.featuredStats}>
                           <Icon name="heart" size={14} color={colors.accent} />
-                          <Text style={styles.featuredStatText}>{journey.likes}</Text>
+                          <Text style={styles.featuredStatText}>{formatNum(journey.likes)}</Text>
                           <Icon name="comment-text-outline" size={14} color={colors.muted} style={styles.featuredStatIcon} />
-                          <Text style={styles.featuredStatText}>{journey.comments}</Text>
+                          <Text style={styles.featuredStatText}>{formatNum(journey.comments)}</Text>
                         </View>
                         <TouchableOpacity>
                           <Icon name="bookmark-outline" size={16} color={colors.muted} />
@@ -565,7 +574,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                     <Image source={renderImage(journey.image)} style={styles.journeyListImage} />
                     <View style={styles.journeyListImageCount}>
                       <Icon name="image-multiple" size={10} color={colors.text} />
-                      <Text style={styles.journeyListImageCountText}>{journey.imageCount}</Text>
+                      <Text style={styles.journeyListImageCountText}>{formatNum(journey.imageCount)}</Text>
                     </View>
                   </View>
 
@@ -605,7 +614,7 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                             <Icon name="star" size={10} color="#FFC107" />
                             <Text style={styles.journeyListRating}>{journey.rating}</Text>
                           </View>
-                          <Text style={styles.journeyListReviews}>({journey.reviews} reviews)</Text>
+                          <Text style={styles.journeyListReviews}>({formatNum(journey.reviews)} reviews)</Text>
                         </View>
                         
                         <TouchableOpacity style={styles.journeyListBookmark}>
