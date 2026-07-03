@@ -77,7 +77,6 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
   const [popularCircles, setPopularCircles] = useState<CircleDocument[]>([]);
   const [myCircles, setMyCircles] = useState<CircleDocument[]>([]);
   const [discoverCircles, setDiscoverCircles] = useState<CircleDocument[]>([]);
-  console.log(discoverCircles,'discover circles')
   const [upcomingEvents, setUpcomingEvents] = useState<EventDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

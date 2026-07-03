@@ -17,7 +17,6 @@ import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { store, persistor } from '@store/index';
 import { RootNavigator } from '@navigation/index';
 import { colors } from '@theme/colors';
-import { seedStaticDataToFirestore } from './src/seedData';
 
 const queryClient = new QueryClient();
 
@@ -57,9 +56,6 @@ const toastConfig = {
 };
 
 function App(): React.JSX.Element {
-  useEffect(() => {
-    seedStaticDataToFirestore().catch(console.error);
-  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
