@@ -26,6 +26,7 @@ import { ColorsType, colors } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
 import LinearGradient from 'react-native-linear-gradient';
 import { trekService, TrekDocument } from '../../services/firebase/trek.service';
+import { RangeSlider } from '../../components/RangeSlider';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -47,6 +48,22 @@ const DIFFICULTY_COLOR: Record<string, string> = {
   Moderate: '#F59E0B',
   Hard: '#EF4444',
   Expert: '#8B5CF6',
+};
+
+const getFilterIcon = (label: string) => {
+  switch (label) {
+    case 'Easy': return 'leaf';
+    case 'Moderate': return 'hiking';
+    case 'Hard': return 'terrain';
+    case 'Expert': return 'fire';
+    case '1-3 Days': return 'clock-outline';
+    case '4-7 Days': return 'calendar-blank';
+    case '8+ Days': return 'calendar-month-outline';
+    case 'Under ₹5,000': return 'wallet-outline';
+    case '₹5,000 - ₹15,000': return 'cash';
+    case 'Above ₹15,000': return 'cash-multiple';
+    default: return 'check';
+  }
 };
 
 const SkeletonItem = ({ style }: { style: any }) => {
@@ -88,7 +105,7 @@ export const ExploreScreen = () => {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [filterDifficulty, setFilterDifficulty] = useState<string[]>([]);
   const [filterDuration, setFilterDuration] = useState<string[]>([]);
-  const [filterPrice, setFilterPrice] = useState<string | null>(null);
+  const [filterPriceRange, setFilterPriceRange] = useState<[number, number]>([0, 50000]);
 
   const fetchExploreData = React.useCallback(async () => {
     try {
@@ -392,13 +409,18 @@ export const ExploreScreen = () => {
             
             <View style={styles.filterHeader}>
               <Text style={styles.filterTitle}>Filters</Text>
-              <TouchableOpacity onPress={() => {
-                setFilterDifficulty([]);
-                setFilterDuration([]);
-                setFilterPrice(null);
-              }}>
-                <Text style={styles.resetText}>Reset</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: normalize(16) }}>
+                <TouchableOpacity onPress={() => {
+                  setFilterDifficulty([]);
+                  setFilterDuration([]);
+                  setFilterPriceRange([0, 50000]);
+                }}>
+                  <Text style={styles.resetText}>Reset</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsFilterVisible(false)} style={styles.closeFilterBtn}>
+                  <Icon name="close" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
@@ -413,11 +435,13 @@ export const ExploreScreen = () => {
                       <TouchableOpacity 
                         key={diff}
                         style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
+                        activeOpacity={0.8}
                         onPress={() => {
                           if (isSelected) setFilterDifficulty(prev => prev.filter(d => d !== diff));
                           else setFilterDifficulty(prev => [...prev, diff]);
                         }}
                       >
+                        <Icon name={getFilterIcon(diff)} size={16} color={isSelected ? '#000' : colors.muted} style={styles.filterOptionIcon} />
                         <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{diff}</Text>
                       </TouchableOpacity>
                     );
@@ -435,11 +459,13 @@ export const ExploreScreen = () => {
                       <TouchableOpacity 
                         key={dur}
                         style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
+                        activeOpacity={0.8}
                         onPress={() => {
                           if (isSelected) setFilterDuration(prev => prev.filter(d => d !== dur));
                           else setFilterDuration(prev => [...prev, dur]);
                         }}
                       >
+                        <Icon name={getFilterIcon(dur)} size={16} color={isSelected ? '#000' : colors.muted} style={styles.filterOptionIcon} />
                         <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{dur}</Text>
                       </TouchableOpacity>
                     );
@@ -448,29 +474,25 @@ export const ExploreScreen = () => {
               </View>
 
               {/* Price Section */}
-              <View style={styles.filterSection}>
+              <View style={[styles.filterSection, { paddingBottom: normalize(20) }]}>
                 <Text style={styles.filterSectionTitle}>Price Range</Text>
-                <View style={styles.filterOptionsGrid}>
-                  {['Under ₹5,000', '₹5,000 - ₹15,000', 'Above ₹15,000'].map(price => {
-                    const isSelected = filterPrice === price;
-                    return (
-                      <TouchableOpacity 
-                        key={price}
-                        style={[styles.filterOptionChip, isSelected && styles.filterOptionChipSelected]}
-                        onPress={() => setFilterPrice(isSelected ? null : price)}
-                      >
-                        <Text style={[styles.filterOptionText, isSelected && styles.filterOptionTextSelected]}>{price}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                <RangeSlider 
+                  min={0}
+                  max={50000}
+                  step={500}
+                  initialLow={filterPriceRange[0]}
+                  initialHigh={filterPriceRange[1]}
+                  onValueChanged={(low, high) => setFilterPriceRange([low, high])}
+                  formatLabel={(v) => `₹${v.toLocaleString('en-IN')}`}
+                />
               </View>
 
               <View style={{ height: normalize(20) }} />
             </ScrollView>
             
             <View style={styles.filterFooter}>
-              <TouchableOpacity style={styles.applyFilterBtn} onPress={() => setIsFilterVisible(false)}>
+              <TouchableOpacity style={styles.applyFilterBtn} activeOpacity={0.8} onPress={() => setIsFilterVisible(false)}>
+                <Icon name="check" size={20} color="#000" style={{ marginRight: 8 }} />
                 <Text style={styles.applyFilterText}>Apply Filters</Text>
               </TouchableOpacity>
             </View>
@@ -853,6 +875,14 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     fontWeight: '600',
     color: colors.accent,
   },
+  closeFilterBtn: {
+    width: normalize(32),
+    height: normalize(32),
+    borderRadius: normalize(16),
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   filterScroll: {
     paddingHorizontal: normalize(20),
     paddingTop: normalize(16),
@@ -872,7 +902,9 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     gap: normalize(10),
   },
   filterOptionChip: {
-    paddingHorizontal: normalize(16),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: normalize(14),
     paddingVertical: normalize(10),
     borderRadius: normalize(12),
     backgroundColor: colors.surface,
@@ -883,6 +915,9 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
+  filterOptionIcon: {
+    marginRight: normalize(6),
+  },
   filterOptionText: {
     fontSize: normalizeFont(13),
     fontWeight: '500',
@@ -890,7 +925,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   },
   filterOptionTextSelected: {
     color: '#000',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   filterFooter: {
     paddingHorizontal: normalize(20),
@@ -899,6 +934,8 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     borderTopColor: colors.surface,
   },
   applyFilterBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     backgroundColor: colors.accent,
     borderRadius: normalize(16),
     paddingVertical: normalize(16),
