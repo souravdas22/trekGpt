@@ -20,6 +20,7 @@ import { ReviewsScreen } from '@screens/reviews/ReviewsScreen';
 import { PaymentScreen } from '@screens/payment/PaymentScreen';
 import { SupportScreen } from '@screens/support/SupportScreen';
 import { EmergencyScreen } from '@screens/emergency/EmergencyScreen';
+import { ExpeditionDashboardScreen } from '@screens/expedition/ExpeditionDashboardScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -117,6 +118,11 @@ export const MainNavigator = () => {
         name="Emergency"
         component={EmergencyScreen}
         options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="ExpeditionDashboard"
+        component={ExpeditionDashboardScreen}
+        options={{ animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );

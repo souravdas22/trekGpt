@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import MapView, { Marker, Polyline, UrlTile, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Polyline, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import { normalize, normalizeFont } from '@theme/normalize';
@@ -45,10 +44,48 @@ const mapStyle = [
   { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] }
 ];
 
+const SANDAKPHU_ROUTE = [
+  { latitude: 27.0504, longitude: 88.1340 }, // Manebhanjan
+  { latitude: 27.0371, longitude: 88.1215 }, // Chitrey
+  { latitude: 27.0298, longitude: 88.0935 }, // Meghma
+  { latitude: 27.0345, longitude: 88.0772 }, // Tonglu
+  { latitude: 27.0270, longitude: 88.0827 }, // Tumling
+  { latitude: 27.0514, longitude: 88.0375 }, // Gairibas
+  { latitude: 27.0858, longitude: 88.0163 }, // Kalipokhri
+  { latitude: 27.1049, longitude: 88.0016 }, // Sandakphu
+  { latitude: 27.1706, longitude: 88.0202 }, // Phalut
+  { latitude: 27.1592, longitude: 88.0436 }, // Gorkhey
+  { latitude: 27.1264, longitude: 88.0829 }, // Srikhola
+  { latitude: 27.1146, longitude: 88.1065 }, // Rimbick
+];
+
+const DEFAULT_REGION = {
+  latitude: 27.1049,
+  longitude: 88.0016,
+  latitudeDelta: 0.25,
+  longitudeDelta: 0.25,
+};
+
+const DEFAULT_TREKKERS = [
+  { id: '1', isUser: true, coordIdx: 6, bg: '#A3E635' },
+  { id: '2', isUser: false, coordIdx: 8, bg: '#EAB308' },
+  { id: '3', isUser: false, coordIdx: 4, bg: '#3B82F6' },
+];
+
+const DEFAULT_CHECKPOINTS = [
+  { id: 'cp-0', coordIdx: 0, title: 'Start', day: 'Day 1' },
+  { id: 'cp-1', coordIdx: 4, title: 'Tumling', day: 'Day 1' },
+  { id: 'cp-2', coordIdx: 6, title: 'Kalipokhri', day: 'Day 2' },
+  { id: 'cp-3', coordIdx: 7, title: 'Sandakphu', day: 'Day 3' },
+  { id: 'cp-4', coordIdx: 8, title: 'Phalut', day: 'Day 4' },
+  { id: 'cp-5', coordIdx: 9, title: 'Gorkhey', day: 'Day 5' },
+  { id: 'cp-6', coordIdx: 10, title: 'Srikhola', day: 'Day 6' },
+];
+
 export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
-  const { trekRoute = [], trekkers = [] } = route?.params || {};
+  const { trekRoute = SANDAKPHU_ROUTE, trekkers = DEFAULT_TREKKERS, checkpoints = DEFAULT_CHECKPOINTS, initialRegion = null } = route?.params || {};
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -61,6 +98,9 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
     ).start();
   }, [pulseAnim]);
 
+  // Default region if not passed
+  const mapRegion = initialRegion || DEFAULT_REGION;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -68,22 +108,12 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
       {/* ── React Native MapView ── */}
       <MapView
         style={styles.mapBg}
-        provider={PROVIDER_DEFAULT}
-        mapType="none"
-        initialRegion={{
-          latitude: 45.9050,
-          longitude: 6.8780,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        }}
+        provider={PROVIDER_GOOGLE}
+        customMapStyle={mapStyle}
+        initialRegion={mapRegion}
         showsUserLocation={false}
         showsCompass={false}
       >
-        <UrlTile
-          urlTemplate="https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-          maximumZ={19}
-          shouldReplaceMapContent={true}
-        />
         {/* Dotted Route Line */}
         <Polyline
           coordinates={trekRoute}
@@ -91,6 +121,23 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
           strokeWidth={4}
           lineDashPattern={[6, 8]}
         />
+
+        {/* ── Checkpoints ── */}
+        {checkpoints.map((cp: any) => {
+          const coord = trekRoute[cp.coordIdx];
+          if (!coord) return null;
+          return (
+            <Marker key={cp.id} coordinate={coord} anchor={{ x: 0.5, y: 1 }} zIndex={2}>
+              <View style={styles.checkpointMarker}>
+                <View style={styles.checkpointLabel}>
+                  <Text style={styles.checkpointDay}>{cp.day}</Text>
+                  <Text style={styles.checkpointTitle}>{cp.title}</Text>
+                </View>
+                <View style={styles.checkpointDot} />
+              </View>
+            </Marker>
+          );
+        })}
 
         {/* ── Trekker Avatar Pins ── */}
         {trekkers.map((trekker: any) => {
@@ -283,6 +330,41 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+  },
+
+  // Checkpoints
+  checkpointMarker: {
+    alignItems: 'center',
+    marginBottom: normalize(4),
+  },
+  checkpointLabel: {
+    backgroundColor: 'rgba(13, 17, 23, 0.85)',
+    paddingHorizontal: normalize(8),
+    paddingVertical: normalize(4),
+    borderRadius: normalize(8),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    marginBottom: normalize(4),
+  },
+  checkpointDay: {
+    color: '#EAB308',
+    fontSize: normalizeFont(10),
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  checkpointTitle: {
+    color: '#FFF',
+    fontSize: normalizeFont(12),
+    fontWeight: '600',
+  },
+  checkpointDot: {
+    width: normalize(12),
+    height: normalize(12),
+    borderRadius: normalize(6),
+    backgroundColor: '#FFF',
+    borderWidth: 3,
+    borderColor: '#EAB308',
   },
 
   // You marker

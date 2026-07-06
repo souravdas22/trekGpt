@@ -14,6 +14,7 @@ import authReducer from './slices/authSlice';
 import settingsReducer from './slices/settingsSlice';
 import savedTreksReducer from './slices/savedTreksSlice';
 import likedTreksReducer from './slices/likedTreksSlice';
+import expeditionReducer from './slices/expeditionSlice';
 import { apiSlice } from '../services/api/apiSlice';
 
 const rootReducer = combineReducers({
@@ -21,13 +22,14 @@ const rootReducer = combineReducers({
   settings: settingsReducer,
   savedTreks: savedTreksReducer,
   likedTreks: likedTreksReducer,
+  expedition: expeditionReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });
 
 const persistConfig = {
   key: 'root',
   storage: reduxStorage,
-  whitelist: ['auth', 'settings', 'savedTreks', 'likedTreks'], // Only persist these reducers
+  whitelist: ['auth', 'settings', 'savedTreks', 'likedTreks', 'expedition'], // Only persist these reducers
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

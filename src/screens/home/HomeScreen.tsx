@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 import { useAppTheme } from '@hooks/useAppTheme';
 import { ColorsType } from '@theme/colors';
 import LinearGradient from 'react-native-linear-gradient';
@@ -130,6 +132,9 @@ export const HomeScreen = () => {
   const [userName, setUserName] = useState<string>('');
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(true);
 
+  const expedition = useSelector((state: RootState) => state.expedition);
+  const savedTreks = useSelector((state: RootState) => state.savedTreks.savedTreks);
+
   const onUpcomingScroll = (e: any) => {
     const x = e.nativeEvent.contentOffset.x;
     const itemWidth = SCREEN_WIDTH - normalize(40);
@@ -173,18 +178,38 @@ export const HomeScreen = () => {
 
       // Fetch Weather
       try {
-        const loc = await mapService.getCurrentLocation();
-        const weather = await weatherService.getWeatherForLocation(loc.latitude, loc.longitude);
+        let weatherLocationString = null;
+        if (expedition.isActive && expedition.activeTrek?.location) {
+          weatherLocationString = expedition.activeTrek.location;
+        } else if (savedTreks.length > 0 && savedTreks[0].location) {
+          weatherLocationString = savedTreks[0].location;
+        } else if (picks.length > 0 && picks[0].location) {
+          weatherLocationString = picks[0].location;
+        }
+
+        let lat = 22.5726; // Default to Kolkata
+        let lon = 88.3639;
+
+        if (weatherLocationString) {
+          const coords = await weatherService.getCoordinatesForCity(weatherLocationString.split(',')[0]);
+          if (coords) {
+            lat = coords.lat;
+            lon = coords.lon;
+          }
+        } else {
+          try {
+            const loc = await mapService.getCurrentLocation();
+            lat = loc.latitude;
+            lon = loc.longitude;
+          } catch (e) {
+            // keep defaults
+          }
+        }
+        const weather = await weatherService.getWeatherForLocation(lat, lon);
         setWeatherTemp(weather.current.temperature);
         setWeatherIcon(getWeatherIconName(weather.current.icon));
-      } catch (e) {
-        try {
-          const weather = await weatherService.getWeatherForLocation(22.5726, 88.3639); // Fallback to Kolkata
-          setWeatherTemp(weather.current.temperature);
-          setWeatherIcon(getWeatherIconName(weather.current.icon));
-        } catch (err) {
-          console.error(err);
-        }
+      } catch (err) {
+        console.error(err);
       }
     } catch (error) {
       console.error('Error fetching home data', error);
@@ -195,7 +220,7 @@ export const HomeScreen = () => {
 
   React.useEffect(() => {
     fetchHomeData();
-  }, [fetchHomeData]);
+  }, [fetchHomeData, expedition.isActive, savedTreks.length]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -282,6 +307,34 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* ── Current Expedition Card (Persistent) ── */}
+        {expedition.isActive && expedition.activeTrek && (
+          <View style={styles.expeditionContainer}>
+            <View style={styles.expeditionCard}>
+              <View style={styles.expeditionHeaderRow}>
+                <View style={styles.expeditionHeaderLeft}>
+                  <Icon name="image-filter-hdr" size={20} color={colors.accent} />
+                  <Text style={styles.expeditionHeaderTitle}>Current Expedition</Text>
+                </View>
+              </View>
+              <View style={styles.expeditionDetailsRow}>
+                <Text style={styles.expeditionTrekName}>{expedition.activeTrek.name}</Text>
+                <Text style={styles.expeditionDayText}>Day {expedition.currentDay}</Text>
+              </View>
+              <View style={styles.expeditionProgressRow}>
+                <Text style={styles.expeditionProgressText}>Progress: {expedition.progress}%</Text>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${expedition.progress}%` }]} />
+                </View>
+              </View>
+              <TouchableOpacity style={styles.continueExpeditionBtn} onPress={() => navigation.navigate('ExpeditionDashboard')}>
+                <Text style={styles.continueExpeditionBtnText}>Continue Trek</Text>
+                <Icon name="arrow-right" size={16} color="#000" style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* ── Search Bar ── */}
         <View style={styles.searchContainer}>
@@ -586,6 +639,83 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   },
   searchIconRight: {
     marginLeft: normalize(10),
+  },
+
+  // Expedition
+  expeditionContainer: {
+    paddingHorizontal: normalize(20),
+    marginBottom: normalize(24),
+  },
+  expeditionCard: {
+    backgroundColor: 'rgba(30, 41, 59, 1)',
+    borderRadius: normalize(16),
+    padding: normalize(16),
+    borderWidth: 1,
+    borderColor: 'rgba(163, 230, 53, 0.4)',
+  },
+  expeditionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: normalize(12),
+  },
+  expeditionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: normalize(6),
+  },
+  expeditionHeaderTitle: {
+    color: colors.accent,
+    fontSize: normalizeFont(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  expeditionDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: normalize(12),
+  },
+  expeditionTrekName: {
+    color: colors.text,
+    fontSize: normalizeFont(20),
+    fontWeight: 'bold',
+  },
+  expeditionDayText: {
+    color: colors.muted,
+    fontSize: normalizeFont(14),
+    fontWeight: '600',
+  },
+  expeditionProgressRow: {
+    marginBottom: normalize(16),
+  },
+  expeditionProgressText: {
+    color: colors.text,
+    fontSize: normalizeFont(12),
+    marginBottom: normalize(6),
+  },
+  progressBarBg: {
+    height: normalize(6),
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: normalize(3),
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: normalize(3),
+  },
+  continueExpeditionBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: normalize(10),
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: normalize(12),
+  },
+  continueExpeditionBtnText: {
+    color: '#000',
+    fontSize: normalizeFont(15),
+    fontWeight: '700',
   },
 
   // Featured Trek

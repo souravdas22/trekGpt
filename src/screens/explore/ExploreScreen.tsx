@@ -17,6 +17,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store';
@@ -100,6 +101,7 @@ export const ExploreScreen = () => {
   const [themes, setThemes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isMapView, setIsMapView] = useState(false);
 
   // Filter states
   const [isFilterVisible, setIsFilterVisible] = useState(false);
@@ -350,12 +352,58 @@ export const ExploreScreen = () => {
             <Text style={styles.headerTitle}>Explore Treks</Text>
             <Text style={styles.headerSubtitle}>Discover your next adventure</Text>
           </View>
+          
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, !isMapView && styles.toggleBtnActive]} 
+              onPress={() => setIsMapView(false)}
+            >
+              <Text style={[styles.toggleText, !isMapView && styles.toggleTextActive]}>List</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.toggleBtn, isMapView && styles.toggleBtnActive]} 
+              onPress={() => setIsMapView(true)}
+            >
+              <Text style={[styles.toggleText, isMapView && styles.toggleTextActive]}>Map</Text>
+            </TouchableOpacity>
+          </View>
+          
           <TouchableOpacity style={styles.filterBtn} activeOpacity={0.8} onPress={() => setIsFilterVisible(true)}>
             <Icon name="tune-variant" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
 
-        {/* ── Search Bar ── */}
+        {isMapView ? (
+          <View style={styles.mapContainer}>
+             <MapView
+               style={styles.mapView}
+               provider={PROVIDER_DEFAULT}
+               initialRegion={{
+                 latitude: 27.0410, // Approx center for Indian Himalayas
+                 longitude: 88.2663,
+                 latitudeDelta: 10,
+                 longitudeDelta: 10,
+               }}
+             >
+               {featuredTreks.concat(popularTreks).map((trek) => (
+                 <Marker 
+                   key={trek.id} 
+                   coordinate={{ 
+                     latitude: 27.0410 + (Math.random() - 0.5) * 5, // mock coordinates
+                     longitude: 88.2663 + (Math.random() - 0.5) * 5 
+                   }}
+                   onPress={() => navigation.navigate('TrekDetails', { trek })}
+                 >
+                   <View style={styles.mapMarker}>
+                     <Icon name="tent" size={16} color="#FFF" />
+                   </View>
+                 </Marker>
+               ))}
+             </MapView>
+          </View>
+        ) : (
+          <>
+            {/* ── Search Bar ── */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
             <Icon name="magnify" size={20} color={colors.muted} style={styles.searchIcon} />
@@ -393,6 +441,8 @@ export const ExploreScreen = () => {
         {renderThemes()}
         
         <View style={{ height: normalize(40) }} />
+        </>
+        )}
       </ScrollView>
 
       {/* ── Filter Modal ── */}
@@ -539,6 +589,31 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     fontSize: normalizeFont(14),
     color: colors.muted,
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: normalize(20),
+    padding: normalize(4),
+    marginHorizontal: normalize(10),
+  },
+  toggleBtn: {
+    paddingHorizontal: normalize(16),
+    paddingVertical: normalize(8),
+    borderRadius: normalize(16),
+  },
+  toggleBtnActive: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  toggleText: {
+    color: colors.muted,
+    fontSize: normalizeFont(13),
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: colors.text,
+  },
   filterBtn: {
     width: normalize(44),
     height: normalize(44),
@@ -548,6 +623,26 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     borderColor: colors.outline,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Map
+  mapContainer: {
+    height: Dimensions.get('window').height * 0.7,
+    marginHorizontal: normalize(20),
+    borderRadius: normalize(20),
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  mapView: {
+    flex: 1,
+  },
+  mapMarker: {
+    backgroundColor: colors.accent,
+    padding: normalize(6),
+    borderRadius: normalize(16),
+    borderWidth: 2,
+    borderColor: '#0D1117',
   },
 
   // Search
