@@ -115,6 +115,34 @@ const SkeletonItem = ({ style }: { style: any }) => {
   );
 };
 
+const formatPrice = (price: string | number): string => {
+  if (price === undefined || price === null) return '';
+  if (typeof price === 'number') {
+    if (price >= 1000) {
+      const val = price / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${price}`;
+  }
+  let str = price.toString().trim();
+  str = str.replace(/₹/g, '').replace(/,/g, '');
+  if (!/\d/.test(str)) {
+    return str;
+  }
+  const formatted = str.replace(/\b\d+(\.\d+)?\b/g, (match) => {
+    const num = parseFloat(match);
+    if (num >= 1000) {
+      const kVal = num / 1000;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    } else if (match.includes('.') && match.split('.')[1].length === 3) {
+      const kVal = num;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    }
+    return match;
+  });
+  return `₹${formatted}`;
+};
+
 export const HomeScreen = () => {
   const colors = useAppTheme();
   const styles = getStyles(colors);
@@ -151,7 +179,7 @@ export const HomeScreen = () => {
         name: t.name || 'Unknown',
         location: t.location || 'Unknown',
         rating: '4.5',
-        price: t.estimatedCost ? `₹${t.estimatedCost}` : 'Contact',
+        price: t.estimatedCost ? formatPrice(t.estimatedCost) : 'Contact',
         image: t.imageUrl ? { uri: t.imageUrl } : require('../../assets/images/fallback_trek.jpg'),
       }));
       
@@ -456,7 +484,7 @@ export const HomeScreen = () => {
                     <Text style={styles.aiPickName} numberOfLines={1}>{item.name}</Text>
                     <View style={styles.aiPickLocationRow}>
                       <Icon name="map-marker-outline" size={12} color={colors.muted} />
-                      <Text style={styles.aiPickLocationText}>{item.location}</Text>
+                      <Text style={styles.aiPickLocationText} numberOfLines={1}>{item.location}</Text>
                     </View>
                     <View style={styles.aiPickStatsRow}>
                       <View style={styles.ratingRow}>
@@ -869,6 +897,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     color: colors.muted,
     fontSize: normalizeFont(11),
     marginLeft: normalize(2),
+    flex: 1,
   },
   aiPickStatsRow: {
     flexDirection: 'row',

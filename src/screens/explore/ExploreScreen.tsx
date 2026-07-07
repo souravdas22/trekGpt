@@ -86,6 +86,116 @@ const SkeletonItem = ({ style }: { style: any }) => {
   );
 };
 
+const TREK_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
+  // West Bengal / Sikkim
+  'sandakphu': {
+    latitude: 27.1067,
+    longitude: 88.0112,
+  },
+  'sandakphu phalut': {
+    latitude: 27.1067,
+    longitude: 88.0112,
+  },
+
+  // Nepal
+  'everest base camp': {
+    latitude: 28.0026,
+    longitude: 86.8528,
+  },
+  'annapurna circuit': {
+    latitude: 28.5961,
+    longitude: 83.8203, // Near Thorong La Pass (center of the circuit)
+  },
+
+  // Uttarakhand
+  'kedarkantha': {
+    latitude: 31.0224,
+    longitude: 78.1697,
+  },
+  'har ki dun': {
+    latitude: 31.1672,
+    longitude: 78.3706,
+  },
+  'valley of flowers': {
+    latitude: 30.7285,
+    longitude: 79.6056,
+  },
+  'roopkund': {
+    latitude: 30.2624,
+    longitude: 79.7327,
+  },
+  'dayara bugyal': {
+    latitude: 30.8248,
+    longitude: 78.5376,
+  },
+
+  // Himachal Pradesh
+  'hampta pass': {
+    latitude: 32.3705,
+    longitude: 77.3598,
+  },
+};
+const getTrekCoordinate = (trek: any) => {
+  const nameKey = trek.name ? trek.name.toLowerCase().trim() : '';
+  if (TREK_COORDINATES[nameKey]) {
+    return TREK_COORDINATES[nameKey];
+  }
+  // Try partial match
+  const matchedKey = Object.keys(TREK_COORDINATES).find(key => nameKey.includes(key));
+  if (matchedKey) {
+    return TREK_COORDINATES[matchedKey];
+  }
+  
+  // Deterministic mock coordinate based on ID string to prevent markers from jumping
+  let hashLat = 0;
+  let hashLng = 0;
+  const idStr = trek.id || '';
+  for (let i = 0; i < idStr.length; i++) {
+    const charCode = idStr.charCodeAt(i);
+    if (i % 2 === 0) {
+      hashLat += charCode;
+    } else {
+      hashLng += charCode;
+    }
+  }
+  
+  const latOffset = (hashLat % 100) / 20; // 0 to 5 degrees offset
+  const lngOffset = (hashLng % 100) / 20; // 0 to 5 degrees offset
+  
+  return {
+    latitude: 27.0410 + latOffset - 2.5,
+    longitude: 88.2663 + lngOffset - 2.5,
+  };
+};
+
+const formatPrice = (price: string | number): string => {
+  if (price === undefined || price === null) return '';
+  if (typeof price === 'number') {
+    if (price >= 1000) {
+      const val = price / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${price}`;
+  }
+  let str = price.toString().trim();
+  str = str.replace(/₹/g, '').replace(/,/g, '');
+  if (!/\d/.test(str)) {
+    return str;
+  }
+  const formatted = str.replace(/\b\d+(\.\d+)?\b/g, (match) => {
+    const num = parseFloat(match);
+    if (num >= 1000) {
+      const kVal = num / 1000;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    } else if (match.includes('.') && match.split('.')[1].length === 3) {
+      const kVal = num;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    }
+    return match;
+  });
+  return `₹${formatted}`;
+};
+
 export const ExploreScreen = () => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
@@ -108,6 +218,11 @@ export const ExploreScreen = () => {
   const [filterDifficulty, setFilterDifficulty] = useState<string[]>([]);
   const [filterDuration, setFilterDuration] = useState<string[]>([]);
   const [filterPriceRange, setFilterPriceRange] = useState<[number, number]>([0, 50000]);
+  const [mapType, setMapType] = useState<'standard' | 'hybrid'>('hybrid');
+
+  const toggleMapType = () => {
+    setMapType(prev => (prev === 'standard' ? 'hybrid' : 'standard'));
+  };
 
   const fetchExploreData = React.useCallback(async () => {
     try {
@@ -221,7 +336,7 @@ export const ExploreScreen = () => {
                 <Text style={styles.featuredName}>{trek.name}</Text>
                 <View style={styles.locationRow}>
                   <Icon name="map-marker-outline" size={14} color={colors.muted} />
-                  <Text style={styles.locationText}>{trek.location}</Text>
+                  <Text style={styles.locationText} numberOfLines={1}>{trek.location}</Text>
                 </View>
                 
                 <View style={styles.featuredMetaRow}>
@@ -232,7 +347,7 @@ export const ExploreScreen = () => {
                     <Icon name="star" size={14} color="#F59E0B" />
                     <Text style={styles.metaText}> {trek.rating}</Text>
                   </View>
-                  <Text style={styles.featuredPrice}>{typeof trek.price === 'number' ? `₹${trek.price.toLocaleString('en-IN')}` : trek.price}</Text>
+                  <Text style={styles.featuredPrice}>{formatPrice(trek.price)}</Text>
                 </View>
               </View>
             </ImageBackground>
@@ -287,7 +402,7 @@ export const ExploreScreen = () => {
               </View>
               <View style={styles.locationRow}>
                 <Icon name="map-marker-outline" size={12} color={colors.muted} />
-                <Text style={styles.popularLocationText}>{trek.location}</Text>
+                <Text style={styles.popularLocationText} numberOfLines={1}>{trek.location}</Text>
               </View>
               <View style={styles.popularMetaRow}>
                 <View style={styles.popularMetaLeft}>
@@ -297,7 +412,7 @@ export const ExploreScreen = () => {
                   <Icon name="star" size={12} color="#F59E0B" />
                   <Text style={styles.popularMetaText}> {trek.rating}</Text>
                 </View>
-                <Text style={styles.popularPrice}>{typeof trek.price === 'number' ? `₹${trek.price.toLocaleString('en-IN')}` : trek.price}</Text>
+                <Text style={styles.popularPrice}>{formatPrice(trek.price)}</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -342,8 +457,15 @@ export const ExploreScreen = () => {
       <ScrollView 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!isMapView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor={colors.accent} 
+            colors={[colors.accent]} 
+            enabled={!isMapView}
+          />
         }
       >
         {/* ── Header ── */}
@@ -378,6 +500,7 @@ export const ExploreScreen = () => {
              <MapView
                style={styles.mapView}
                provider={PROVIDER_DEFAULT}
+               mapType={mapType}
                initialRegion={{
                  latitude: 27.0410, // Approx center for Indian Himalayas
                  longitude: 88.2663,
@@ -385,13 +508,10 @@ export const ExploreScreen = () => {
                  longitudeDelta: 10,
                }}
              >
-               {featuredTreks.concat(popularTreks).map((trek) => (
+               {Array.from(new Map([...featuredTreks, ...popularTreks].map(t => [t.id, t])).values()).map((trek) => (
                  <Marker 
                    key={trek.id} 
-                   coordinate={{ 
-                     latitude: 27.0410 + (Math.random() - 0.5) * 5, // mock coordinates
-                     longitude: 88.2663 + (Math.random() - 0.5) * 5 
-                   }}
+                   coordinate={getTrekCoordinate(trek)}
                    onPress={() => navigation.navigate('TrekDetails', { trek })}
                  >
                    <View style={styles.mapMarker}>
@@ -400,6 +520,13 @@ export const ExploreScreen = () => {
                  </Marker>
                ))}
              </MapView>
+             <TouchableOpacity 
+               style={styles.mapTypeToggleBtn} 
+               activeOpacity={0.8}
+               onPress={toggleMapType}
+             >
+               <Icon name={mapType === 'standard' ? "layers-outline" : "map-outline"} size={22} color="#EAB308" />
+             </TouchableOpacity>
           </View>
         ) : (
           <>
@@ -637,6 +764,24 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
   mapView: {
     flex: 1,
   },
+  mapTypeToggleBtn: {
+    position: 'absolute',
+    top: normalize(16),
+    right: normalize(16),
+    width: normalize(40),
+    height: normalize(40),
+    borderRadius: normalize(20),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outline,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   mapMarker: {
     backgroundColor: colors.accent,
     padding: normalize(6),
@@ -783,6 +928,8 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     color: colors.muted,
     fontSize: normalizeFont(13),
     marginLeft: normalize(4),
+    flex: 1,
+    maxWidth: '90%',
   },
   featuredMetaRow: {
     flexDirection: 'row',
@@ -862,6 +1009,7 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     color: colors.muted,
     fontSize: normalizeFont(12),
     marginLeft: normalize(4),
+    flex: 1,
   },
   popularMetaRow: {
     flexDirection: 'row',

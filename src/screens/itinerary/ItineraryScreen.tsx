@@ -185,14 +185,49 @@ const ITINERARY_DATA: Record<string, ItineraryItem[]> = {
 
 interface ItineraryScreenProps {
   navigation?: any;
+  route?: any;
 }
 
-export const ItineraryScreen = ({ navigation }: ItineraryScreenProps) => {
+export const ItineraryScreen = ({ navigation, route }: ItineraryScreenProps) => {
   const colors = useAppTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
+  const passedItinerary = route?.params?.itinerary;
+  const trekName = route?.params?.trekName;
+
+  const itineraryData = useMemo(() => {
+    if (passedItinerary && Array.isArray(passedItinerary) && passedItinerary.length > 0) {
+      const data: Record<string, ItineraryItem[]> = {};
+      passedItinerary.forEach((wp: any) => {
+        const dayKey = `Day ${wp.dayNumber}`;
+        data[dayKey] = [
+          {
+            id: `day_${wp.dayNumber}`,
+            time: wp.timeStr || 'All Day',
+            title: wp.title || 'Trek Activity',
+            description: wp.distanceStr ? `Distance: ${wp.distanceStr}` : 'Scenic hiking trail segment.',
+            image: wp.imageUrl ? { uri: wp.imageUrl } : require('@assets/images/fallback_trek.jpg'),
+            isSpecialNode: true,
+          }
+        ];
+      });
+      return data;
+    }
+    return ITINERARY_DATA;
+  }, [passedItinerary]);
+
+  const firstDayKey = useMemo(() => {
+    const keys = Object.keys(itineraryData);
+    return keys.length > 0 ? keys[0] : 'Day 1';
+  }, [itineraryData]);
+
   const [selectedDay, setSelectedDay] = useState<string>('Day 1');
   const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Sync selectedDay when itineraryData loads/changes
+  React.useEffect(() => {
+    setSelectedDay(firstDayKey);
+  }, [firstDayKey]);
 
   const handleDayPress = (day: string) => {
     if (day === selectedDay) return;
@@ -215,7 +250,7 @@ export const ItineraryScreen = ({ navigation }: ItineraryScreenProps) => {
     });
   };
 
-  const items = ITINERARY_DATA[selectedDay] || [];
+  const items = itineraryData[selectedDay] || [];
 
   return (
     <View style={styles.container}>
@@ -231,7 +266,7 @@ export const ItineraryScreen = ({ navigation }: ItineraryScreenProps) => {
           <Icon name="chevron-left" size={24} color={colors.text} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Itinerary</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{trekName || 'Itinerary'}</Text>
 
         <View style={styles.headerRightPlaceholder} />
       </View>
@@ -243,7 +278,7 @@ export const ItineraryScreen = ({ navigation }: ItineraryScreenProps) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsContainer}
         >
-          {Object.keys(ITINERARY_DATA).map(day => {
+          {Object.keys(itineraryData).map(day => {
             const isActive = selectedDay === day;
             return (
               <TouchableOpacity

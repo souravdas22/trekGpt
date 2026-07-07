@@ -8,6 +8,7 @@ import {
   StatusBar,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import MapView, { Marker, Polyline, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -89,6 +90,63 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  const days: string[] = useMemo(() => ['All', ...Array.from(new Set<string>(checkpoints.map((cp: any) => cp.day as string)))], [checkpoints]);
+  const [selectedDay, setSelectedDay] = useState('All');
+  const [mapType, setMapType] = useState<'standard' | 'hybrid'>('hybrid');
+
+  const toggleMapType = () => {
+    setMapType(prev => (prev === 'standard' ? 'hybrid' : 'standard'));
+  };
+
+  const filteredRoute = useMemo(() => {
+    if (selectedDay === 'All') return trekRoute;
+    const startIdx = checkpoints.find((c: any) => c.day === selectedDay)?.coordIdx || 0;
+    
+    // find the first checkpoint of the NEXT day
+    const selectedDayNum = parseInt(selectedDay.replace('Day ', ''));
+    const nextDayStr = `Day ${selectedDayNum + 1}`;
+    const nextDayCp = checkpoints.find((c: any) => c.day === nextDayStr);
+    
+    const endIdx = nextDayCp ? nextDayCp.coordIdx : trekRoute.length - 1;
+    return trekRoute.slice(startIdx, endIdx + 1);
+  }, [selectedDay, trekRoute, checkpoints]);
+
+  const filteredCheckpoints = useMemo(() => {
+    if (selectedDay === 'All') return checkpoints;
+    const selectedDayNum = parseInt(selectedDay.replace('Day ', ''));
+    const nextDayStr = `Day ${selectedDayNum + 1}`;
+    const dayCps = checkpoints.filter((c: any) => c.day === selectedDay);
+    const nextDayCp = checkpoints.find((c: any) => c.day === nextDayStr);
+    if (nextDayCp) return [...dayCps, nextDayCp];
+    return dayCps;
+  }, [selectedDay, checkpoints]);
+
+
+  const routeDistance = useMemo(() => {
+    let dist = 0;
+    for (let i = 0; i < filteredRoute.length - 1; i++) {
+      const lat1 = filteredRoute[i].latitude;
+      const lon1 = filteredRoute[i].longitude;
+      const lat2 = filteredRoute[i + 1].latitude;
+      const lon2 = filteredRoute[i + 1].longitude;
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      dist += R * c;
+    }
+    // Multiply by 1.2 to account for mountain terrain winding paths not captured by straight lines
+    return (dist * 1.2).toFixed(1);
+  }, [filteredRoute]);
+
+  const destinationTitle = useMemo(() => {
+    if (filteredCheckpoints.length === 0) return 'Unknown';
+    return filteredCheckpoints[filteredCheckpoints.length - 1].title;
+  }, [filteredCheckpoints]);
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -109,21 +167,22 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
       <MapView
         style={styles.mapBg}
         provider={PROVIDER_GOOGLE}
-        customMapStyle={mapStyle}
+        mapType={mapType}
+        customMapStyle={mapType === 'standard' ? mapStyle : undefined}
         initialRegion={mapRegion}
         showsUserLocation={false}
         showsCompass={false}
       >
         {/* Dotted Route Line */}
         <Polyline
-          coordinates={trekRoute}
+          coordinates={filteredRoute}
           strokeColor="#EAB308"
           strokeWidth={4}
           lineDashPattern={[6, 8]}
         />
 
         {/* ── Checkpoints ── */}
-        {checkpoints.map((cp: any) => {
+        {filteredCheckpoints.map((cp: any) => {
           const coord = trekRoute[cp.coordIdx];
           if (!coord) return null;
           return (
@@ -191,8 +250,8 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
 
       {/* ── Right Floating Controls ── */}
       <View style={styles.sideControls}>
-        <TouchableOpacity style={styles.sideBtn} activeOpacity={0.8}>
-          <Icon name="layers-outline" size={22} color="#EAB308" />
+        <TouchableOpacity style={styles.sideBtn} activeOpacity={0.8} onPress={toggleMapType}>
+          <Icon name={mapType === 'standard' ? "layers-outline" : "map-outline"} size={22} color="#EAB308" />
         </TouchableOpacity>
       </View>
 
@@ -207,25 +266,41 @@ export const MapRouteScreen = ({ navigation, route }: MapRouteScreenProps) => {
 
       {/* ── Bottom Info Panel ── */}
       <View style={styles.infoPanel}>
+        <View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
+            {days.map((day) => (
+               <TouchableOpacity 
+                 key={day} 
+                 style={[styles.tab, selectedDay === day && styles.tabActive]}
+                 onPress={() => setSelectedDay(day)}
+               >
+                 <Text style={[styles.tabText, selectedDay === day && styles.tabTextActive]}>{day}</Text>
+               </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
         <View style={styles.cardsRow}>
-          {/* Card 1: Next Checkpoint */}
+          {/* Card 1: Route Distance & Target */}
           <View style={styles.infoCard}>
             <View style={styles.cardLeftIcon}>
-              <Icon name="target" size={16} color="#0D1117" />
+              <Icon name="map-marker-distance" size={18} color="#0D1117" />
             </View>
             <View style={styles.cardTextCol}>
-              <Text style={styles.cardSub}>Next Checkpoint</Text>
-              <Text style={styles.cardValue}>2.4 km</Text>
-              <Text style={styles.cardSub}>Charlie's Camp</Text>
+              <Text style={styles.cardSub}>{selectedDay === 'All' ? 'Total Distance' : 'Day Distance'}</Text>
+              <Text style={styles.cardValue}>{routeDistance} km</Text>
+              <Text style={styles.cardSub}>To {destinationTitle}</Text>
             </View>
           </View>
 
           {/* Card 2: Altitude */}
           <View style={styles.infoCard}>
-            <View style={[styles.cardTextCol, { alignItems: 'center', width: '100%' }]}>
+            <View style={[styles.cardLeftIcon, { backgroundColor: '#38BDF8' }]}>
+              <Icon name="image-filter-hdr" size={18} color="#0D1117" />
+            </View>
+            <View style={styles.cardTextCol}>
               <Text style={styles.cardSub}>Altitude</Text>
               <Text style={styles.cardValue}>2,600</Text>
-              <Text style={styles.cardSub}>2,860 m</Text>
+              <Text style={styles.cardSub}>Max: 2,860 m</Text>
             </View>
           </View>
         </View>
@@ -403,12 +478,38 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: normalize(20),
-    paddingTop: normalize(24),
+    paddingTop: normalize(16),
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     marginTop: -32,
     zIndex: 5,
     elevation: 5,
+  },
+  tabsScroll: {
+    paddingBottom: normalize(16),
+    gap: normalize(12),
+    alignItems: 'center',
+  },
+  tab: {
+    paddingHorizontal: normalize(16),
+    paddingVertical: normalize(8),
+    borderRadius: normalize(20),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.outline,
+  },
+  tabActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  tabText: {
+    color: colors.muted,
+    fontSize: normalizeFont(13),
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#000',
+    fontWeight: '800',
   },
   cardsRow: {
     flexDirection: 'row',

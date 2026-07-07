@@ -154,7 +154,7 @@ export const ExpeditionDashboardScreen = () => {
             <View style={[styles.toolIconBg, { backgroundColor: 'rgba(56,189,248,0.1)' }]}>
               <Icon name="map-legend" size={28} color="#38BDF8" />
             </View>
-            <Text style={styles.toolTitle}>Today's Route</Text>
+            <Text style={styles.toolTitle}>Route</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.toolCard} onPress={() => navigation.navigate('OfflineMaps')}>

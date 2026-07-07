@@ -33,6 +33,81 @@ const HERO_HEIGHT = SCREEN_HEIGHT * 0.48;
 type Tab = 'Overview' | 'Itinerary' | 'Inclusions' | 'Reviews';
 
 // Static fallback data removed, fetching dynamically from Firestore
+const mapLucideToMCI = (lucideIcon: string): string => {
+  if (!lucideIcon) return 'help-circle-outline';
+  const icon = lucideIcon.toLowerCase().trim();
+  const mapping: Record<string, string> = {
+    compass: 'compass-outline',
+    calendar: 'calendar-outline',
+    trendingup: 'trending-up',
+    award: 'trophy-award',
+    shield: 'shield-outline',
+    heart: 'heart-outline',
+    activity: 'pulse',
+    coffee: 'coffee',
+    home: 'home-outline',
+    sun: 'weather-sunny',
+    cloud: 'weather-cloudy',
+    cloudsnow: 'weather-snowy',
+    wind: 'weather-windy',
+    mappin: 'map-marker-outline',
+    map: 'map-outline',
+    star: 'star-outline',
+    check: 'check',
+    alerttriangle: 'alert-outline',
+    eye: 'eye-outline',
+    info: 'information-outline',
+    backpack: 'bag-personal',
+    footprints: 'shoe-print',
+    flame: 'fire',
+    droplets: 'water',
+    batterycharging: 'battery-charging',
+    wrench: 'wrench',
+    firstaidkit: 'medical-bag',
+    hardhat: 'hard-hat',
+    sunglasses: 'sunglasses',
+    navigation: 'navigation-outline',
+    sunrise: 'weather-sunset-up',
+    snowflake: 'snowflake',
+    cloudrain: 'weather-rainy',
+    thermometer: 'thermometer',
+    flashlight: 'flashlight',
+    tent: 'tent',
+    mountain: 'image-filter-hdr',
+    trees: 'forest',
+    camera: 'camera-outline',
+    lake: 'water',
+  };
+  return mapping[icon] || icon;
+};
+
+const formatPrice = (price: string | number): string => {
+  if (price === undefined || price === null || price === '-') return '-';
+  if (typeof price === 'number') {
+    if (price >= 1000) {
+      const val = price / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${price}`;
+  }
+  let str = price.toString().trim();
+  str = str.replace(/₹/g, '').replace(/,/g, '');
+  if (!/\d/.test(str)) {
+    return str;
+  }
+  const formatted = str.replace(/\b\d+(\.\d+)?\b/g, (match) => {
+    const num = parseFloat(match);
+    if (num >= 1000) {
+      const kVal = num / 1000;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    } else if (match.includes('.') && match.split('.')[1].length === 3) {
+      const kVal = num;
+      return `${kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1)}k`;
+    }
+    return match;
+  });
+  return `₹${formatted}`;
+};
 
 interface TrekDetailsScreenProps {
   navigation?: any;
@@ -101,6 +176,8 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
   const [isLoading, setIsLoading] = useState(!passedTrek && !!passedTrekId);
   const [fetchedTrek, setFetchedTrek] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [isLocationExpanded, setIsLocationExpanded] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -142,7 +219,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
       return merged.length > 0 ? merged : ['https://images.unsplash.com/photo-1544644181-1484b3f8c8b0?w=400&q=80'];
     })(),
     photoCount: rawTrek.photoCount || (rawTrek.imageUrls ? rawTrek.imageUrls.length + 1 : 1),
-    price: rawTrek.estimatedCost || rawTrek.price || '-',
+    price: formatPrice(rawTrek.estimatedCost || rawTrek.price || '-'),
     description: rawTrek.description || 'No description available for this trek.',
     highlights: rawTrek.highlights || [],
     bestTime: rawTrek.bestTime || [],
@@ -260,15 +337,30 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
             <Text style={styles.trekName}>{trek.name}</Text>
             
             <View style={styles.locationRatingRow}>
-               <View style={styles.locationContainer}>
-                 <Icon name="map-marker-outline" size={16} color={colors.accent} />
-                 <Text style={styles.locationText}>{trek.location}</Text>
-               </View>
-               <View style={styles.ratingContainer}>
-                 <Icon name="star" size={16} color="#FBBF24" />
-                 <Text style={styles.ratingText}>{trek.rating} <Text style={styles.reviewCountText}>({trek.reviewCount} reviews)</Text></Text>
-               </View>
-            </View>
+                <TouchableOpacity
+                  style={styles.locationContainer}
+                  activeOpacity={0.7}
+                  onPress={() => setIsLocationExpanded(!isLocationExpanded)}
+                >
+                  <Icon name="map-marker-outline" size={16} color={colors.accent} />
+                  <Text
+                    style={styles.locationText}
+                    numberOfLines={isLocationExpanded ? undefined : 1}
+                  >
+                    {trek.location}
+                  </Text>
+                  <Icon
+                    name={isLocationExpanded ? "chevron-up" : "chevron-down"}
+                    size={16}
+                    color={colors.muted}
+                    style={{ marginLeft: 2 }}
+                  />
+                </TouchableOpacity>
+                <View style={styles.ratingContainer}>
+                  <Icon name="star" size={16} color="#FBBF24" />
+                  <Text style={styles.ratingText}>{trek.rating} <Text style={styles.reviewCountText}>({trek.reviewCount} reviews)</Text></Text>
+                </View>
+             </View>
 
             <Text style={styles.shortDescText}>
               A classic valley trek with breathtaking views of Swargarohini and Bandarpoonch peaks.
@@ -327,11 +419,22 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
           {activeTab === 'Overview' && (
             <View style={styles.tabContent}>
               <Text style={styles.sectionTitle}>About the Trek</Text>
-              <Text style={styles.description}>{trek.description}</Text>
-              <TouchableOpacity style={styles.readMoreBtn}>
-                <Text style={styles.readMoreText}>Read more</Text>
-                <Icon name="chevron-down" size={16} color={colors.accent} />
-              </TouchableOpacity>
+              <Text 
+                style={styles.description}
+                numberOfLines={isDescExpanded ? undefined : 3}
+              >
+                {trek.description}
+              </Text>
+              {trek.description && trek.description.length > 150 && (
+                <TouchableOpacity 
+                  style={styles.readMoreBtn}
+                  onPress={() => setIsDescExpanded(!isDescExpanded)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.readMoreText}>{isDescExpanded ? 'Read less' : 'Read more'}</Text>
+                  <Icon name={isDescExpanded ? "chevron-up" : "chevron-down"} size={16} color={colors.accent} />
+                </TouchableOpacity>
+              )}
 
               {/* Highlights */}
               <View style={styles.sectionContainer}>
@@ -339,7 +442,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
                 <View style={styles.highlightsList}>
                   {trek.highlights.map((h: any, i: number) => (
                     <View key={i} style={styles.highlightRow}>
-                      <Icon name={h.icon} size={20} color={colors.accent} style={styles.highlightIcon} />
+                      <Icon name={mapLucideToMCI(h.icon)} size={20} color={colors.accent} style={styles.highlightIcon} />
                       <Text style={styles.highlightText}>{h.text}</Text>
                     </View>
                   ))}
@@ -352,7 +455,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
                 <View style={styles.bestTimeGrid}>
                    {trek.bestTime.map((bt: any, i: number) => (
                      <View key={i} style={[styles.bestTimeCard, bt.active && styles.bestTimeCardActive]}>
-                        <Icon name={bt.icon} size={24} color={bt.active ? colors.accent : '#38BDF8'} />
+                        <Icon name={mapLucideToMCI(bt.icon)} size={24} color={bt.active ? colors.accent : '#38BDF8'} />
                         <Text style={styles.bestTimeMonths}>{bt.months}</Text>
                         <Text style={styles.bestTimeSeason}>{bt.season}</Text>
                      </View>
@@ -417,7 +520,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
                     {trek.essentials.map((ess: any, i: number) => (
                        <View key={i} style={styles.essentialCard}>
                           <View style={styles.essentialIconWrap}>
-                             <Icon name={ess.icon} size={24} color="#38BDF8" />
+                             <Icon name={mapLucideToMCI(ess.icon)} size={24} color="#38BDF8" />
                           </View>
                           <Text style={styles.essentialTitle}>{ess.title}</Text>
                           <Text style={styles.essentialSubtitle}>{ess.subtitle}</Text>
@@ -503,7 +606,7 @@ export const TrekDetailsScreen = ({ navigation, route }: TrekDetailsScreenProps)
       {/* ── Fixed Bottom Bar ── */}
       <View style={styles.bottomBar}>
          <View style={styles.priceContainer}>
-            <Text style={styles.priceValue}>₹{trek.price}</Text>
+            <Text style={styles.priceValue}>{trek.price}</Text>
             <Text style={styles.priceLabel}>Starting from</Text>
          </View>
         <TouchableOpacity
@@ -688,11 +791,14 @@ const getStyles = (colors: ColorsType) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: normalize(4),
+    flex: 1,
+    marginRight: normalize(12),
   },
   locationText: {
     color: colors.accent,
     fontSize: normalizeFont(13),
     fontWeight: '500',
+    flexShrink: 1,
   },
   ratingContainer: {
     flexDirection: 'row',
