@@ -1,97 +1,408 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# TrekGPT 🏔️
 
-# Getting Started
+> Your intelligent companion for planning, discovering and experiencing trekking adventures.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+TrekGPT is a cross-platform trekking application built with React Native that combines trekking discovery, personalized planning, maps, community features and AI-powered assistance into a single mobile experience.
 
-## Step 1: Start Metro
+The goal is to make trekking more accessible by helping users discover suitable treks, understand requirements, plan their journey and get contextual assistance along the way.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+---
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## ✨ Features
 
-```sh
-# Using npm
+### 🏔️ Trek Discovery
+
+- Explore trekking destinations
+- Browse popular and recommended treks
+- View detailed trek information
+- Explore trek difficulty, duration and requirements
+- View trekking images and information
+
+### 🤖 AI Trek Assistant
+
+Get AI-powered assistance for trekking-related questions and planning.
+
+The assistant can help users with:
+
+- Trek planning
+- Trek-related questions
+- Preparation guidance
+- Personalized suggestions
+- Context-aware trekking assistance
+
+### 🗺️ Maps & Location
+
+- Location-aware trekking experience
+- Map integration
+- Geolocation support
+- Trek location visualization
+
+### 🎒 Trek Planning
+
+Plan your trek around important requirements such as:
+
+- Trek duration
+- Difficulty
+- Equipment
+- Budget
+- Preparation
+
+### 👥 Community
+
+A dedicated community experience where trekkers can discover and share trekking-related content.
+
+### 🔐 Authentication
+
+- Email/password authentication
+- Google Sign-In
+- Firebase Authentication
+- Persistent authentication state
+
+### 🖼️ Media
+
+- Trek images
+- Image selection
+- Image viewing
+- Image optimization/compression
+- Remote media storage
+
+---
+
+# 🏗️ Application Architecture
+
+```text
+                         TrekGPT
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+        Trek Discovery   AI Assistant   Community
+             │              │              │
+             └──────────────┼──────────────┘
+                            │
+                            ▼
+                    React Native App
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+         Firebase        Gemini AI       Maps
+             │
+       ┌─────┼─────┐
+       ▼     ▼     ▼
+      Auth  Firestore Storage
+```
+
+---
+
+# 🛠️ Technology Stack
+
+## Mobile
+
+- React Native
+- TypeScript
+- React Navigation
+- React Native Paper
+- React Native Reanimated
+- React Native Gesture Handler
+- React Native Maps
+
+## State Management
+
+- Redux Toolkit
+- React Redux
+- Redux Persist
+- TanStack React Query
+
+## Backend / Cloud
+
+- Firebase Authentication
+- Firebase Firestore
+- Firebase Storage
+- Firebase Admin
+
+## AI
+
+- Google Generative AI / Gemini
+
+## Device & Location
+
+- React Native Geolocation
+- React Native Device Info
+- React Native Permissions
+
+## Media
+
+- React Native Image Picker
+- React Native Fast Image
+- React Native Compressor
+- React Native Image Viewing
+
+## Developer Experience
+
+- TypeScript
+- ESLint
+- Prettier
+- Jest
+- Husky
+- Commitlint
+
+---
+
+# 📱 Application Structure
+
+```text
+trekGpt/
+│
+├── android/
+├── ios/
+├── src/
+│   ├── components/
+│   ├── screens/
+│   ├── navigation/
+│   ├── services/
+│   ├── store/
+│   ├── hooks/
+│   ├── utils/
+│   └── ...
+│
+├── __tests__/
+├── App.tsx
+├── package.json
+└── README.md
+```
+
+---
+
+# 🤖 AI Architecture
+
+TrekGPT integrates Google's Generative AI capabilities to provide an AI-assisted trekking experience.
+
+```text
+User
+ │
+ ▼
+TrekGPT AI Assistant
+ │
+ ▼
+Prompt / Context
+ │
+ ▼
+Gemini
+ │
+ ▼
+AI Response
+ │
+ ▼
+Mobile UI
+```
+
+The AI layer is designed around trekking-specific use cases rather than functioning as a generic chatbot.
+
+---
+
+# 🔥 Key Engineering Concepts
+
+The project explores several real-world mobile engineering concepts:
+
+- Cross-platform application development
+- Cloud-backed mobile architecture
+- Authentication
+- Persistent application state
+- Server-state management
+- Real-time/cloud database integration
+- Media storage
+- Geolocation
+- Maps
+- AI integration
+- API/service abstraction
+- Form validation
+- Localization
+- Performance-oriented list rendering
+- Image optimization
+
+---
+
+# 🚀 Getting Started
+
+## Prerequisites
+
+Make sure you have:
+
+- Node.js >= 22.11
+- React Native development environment
+- Android Studio for Android development
+- Xcode for iOS development
+- Firebase project configuration
+- Google Generative AI configuration
+
+---
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/souravdas22/trekGpt.git
+
+cd trekGpt
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+---
+
+## Android
+
+Start Metro:
+
+```bash
 npm start
-
-# OR using Yarn
-yarn start
 ```
 
-## Step 2: Build and run your app
+Then in another terminal:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
+```bash
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
+---
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## iOS
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Install dependencies:
 
-```sh
+```bash
 bundle install
 ```
 
-Then, and every time you update your native dependencies, run:
+Install CocoaPods:
 
-```sh
+```bash
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Run:
 
-```sh
-# Using npm
+```bash
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+# 🔐 Environment Configuration
 
-## Step 3: Modify your app
+Create the required environment configuration locally.
 
-Now that you have successfully run the app, let's make changes!
+Never commit:
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```text
+.env
+API keys
+Firebase credentials
+Google AI credentials
+private configuration
+```
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Use environment variables for sensitive configuration.
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+---
 
-## Congratulations! :tada:
+# 🧪 Testing
 
-You've successfully run and modified your React Native App. :partying_face:
+Run tests:
 
-### Now what?
+```bash
+npm test
+```
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+Run linting:
 
-# Troubleshooting
+```bash
+npm run lint
+```
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+---
 
-# Learn More
+# 📸 Screenshots
 
-To learn more about React Native, take a look at the following resources:
+> Add application screenshots here.
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Recommended screenshots:
+
+1. Home
+2. Explore
+3. Trek Details
+4. AI Assistant
+5. Community
+6. Trek Planning
+7. Map experience
+
+---
+
+# 🗺️ Roadmap
+
+- [ ] Improve trek recommendation engine
+- [ ] Personalized trek recommendations
+- [ ] Advanced AI trekking assistant
+- [ ] Trek itinerary generation
+- [ ] Gear recommendation system
+- [ ] Trek budget planning
+- [ ] Offline trek information
+- [ ] Enhanced community features
+- [ ] Trek progress tracking
+- [ ] Push notifications
+- [ ] Improved map experience
+- [ ] Performance optimization
+
+---
+
+# 🎯 Project Vision
+
+TrekGPT aims to become more than a trekking directory.
+
+The long-term vision is to create a personal trekking companion that helps users move through the entire trekking journey:
+
+```text
+Discover
+   ↓
+Explore
+   ↓
+Plan
+   ↓
+Prepare
+   ↓
+Travel
+   ↓
+Trek
+   ↓
+Share
+```
+
+AI is used as an assistance layer throughout the experience rather than being the entire product.
+
+---
+
+# 👨‍💻 Author
+
+## Sourav Das
+
+Backend Developer | Node.js | Express.js | MongoDB | PostgreSQL
+
+GitHub:
+https://github.com/souravdas22
+
+LinkedIn:
+https://www.linkedin.com/in/sourav-das-201596215/
+
+---
+
+## ⭐ Project Status
+
+🚧 **Active Development**
+
+TrekGPT is an ongoing personal project focused on exploring mobile development, cloud services, AI integration and product-oriented application architecture.
